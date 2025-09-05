@@ -146,7 +146,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // Delete zone component
         AFRAME.registerComponent('delete-zone', {
             init: function() {
-                this.el.addEventListener('collidestart', this.onCollision.bind(this));
+                this.el.addEventListener('collide', this.onCollision.bind(this));
             },
             onCollision: function(evt) {
                 const collidedEl = evt.detail.target.el;
@@ -378,7 +378,15 @@ document.addEventListener('DOMContentLoaded', function() {
         
         objectCounter++;
         entity.setAttribute('id', `spawned-object-${objectCounter}`);
+        entity.setAttribute('class', 'interactive-object grabbable');
         entity.setAttribute('class', 'interactive-object');
+        entity.setAttribute('hoverable', '');
+        entity.setAttribute('clickable', '');
+        entity.setAttribute('super-hands', '');
+        entity.setAttribute('grabbable', 'startButtons: triggerdown; endButtons: triggerup');
+        entity.setAttribute('stretchable', 'startButtons: gripdown; endButtons: gripup');
+        entity.setAttribute('draggable', 'startButtons: triggerdown; endButtons: triggerup');
+        entity.setAttribute('enhanced-grabbable', '');
         
         // Set position with slight randomization
         const spawnPos = {
