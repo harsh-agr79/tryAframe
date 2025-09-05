@@ -1,859 +1,608 @@
-// VR Interactive Object Room - Enhanced JavaScript Logic
+// VR Interactive Workshop - JavaScript
+// Meta Quest 2 optimized A-Frame application
 
-// Global variables
-let objectCounter = 0;
-let removeMode = false;
-let maxObjects = 20;
-let spawnedObjects = [];
-let sceneReady = false;
-let isSpawning = false; // Prevent rapid spawning
-
-// Object configurations
-const OBJECT_CONFIGS = {
-    'box': { color: '#4CC3D9', shape: 'box' },
-    'sphere': { color: '#EF2D5E', shape: 'sphere' },
-    'cylinder': { color: '#FFC65D', shape: 'cylinder' },
-    'cone': { color: '#7BC8A4', shape: 'cone' },
-    'torus': { color: '#93648D', shape: 'torus' }
-};
-
-// Initialize everything when DOM and scene are ready
-window.addEventListener('load', function() {
-    console.log('Window loaded, initializing...');
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('VR Interactive Workshop initializing...');
     
-    // Add UI elements first
-    addInstructions();
-    addObjectCounter();
-    addRemoveModeIndicator();
+    // Global variables
+    let objectCounter = 0;
+    let isVRMode = false;
+    let performanceStats = {
+        fps: 0,
+        objects: 0,
+        physics: 0
+    };
     
-    // Wait for scene to be ready
-    const scene = document.querySelector('a-scene');
-    if (scene) {
-        if (scene.hasLoaded) {
-            initializeApp();
-        } else {
-            scene.addEventListener('loaded', initializeApp);
-        }
-    } else {
-        // Fallback - try again after a delay
-        setTimeout(initializeApp, 2000);
-    }
-});
-
-function initializeApp() {
-    console.log('Initializing VR app...');
-    sceneReady = true;
-    
-    registerComponents();
-    setupEventListeners();
-    setupMenuButtons();
-    setupVRControllers();
-    
-    console.log('VR app initialized successfully');
-    console.log('Use keys 1-5 to spawn objects, R for remove mode, C to clear all');
-}
-
-// Register enhanced A-Frame components
-function registerComponents() {
-    // Enhanced menu clickable component with debouncing
-    AFRAME.registerComponent('menu-clickable', {
-        init: function() {
-            const el = this.el;
-            let lastClick = 0;
-            
-            el.addEventListener('click', function(evt) {
-                evt.stopPropagation();
-                const now = Date.now();
-                if (now - lastClick < 500) return; // Debounce clicks
-                lastClick = now;
-                
-                const buttonId = el.getAttribute('data-spawn-type');
-                console.log(`Menu button clicked: ${buttonId}`);
-                if (buttonId && !isSpawning) {
-                    spawnObjectByType(buttonId);
-                }
-            });
-            
-            // Enhanced hover effects
-            el.addEventListener('mouseenter', function() {
-                el.setAttribute('scale', '1.1 1.1 1.1');
-                el.setAttribute('material', 'opacity', 0.8);
-            });
-            
-            el.addEventListener('mouseleave', function() {
-                el.setAttribute('scale', '1 1 1');
-                el.setAttribute('material', 'opacity', 1);
-            });
-        }
-    });
-
-    // Enhanced interactable object component with full VR support
-    AFRAME.registerComponent('interactable-object', {
-        init: function() {
-            const el = this.el;
-            
-            // Make it fully VR interactive
-            el.setAttribute('grabbable', '');
-            el.setAttribute('stretchable', '');
-            el.setAttribute('draggable', '');
-            
-            // Add proper classes for targeting
-            el.classList.add('clickable');
-            el.classList.add('interactable');
-            el.classList.add('grabbable');
-            
-            // Handle grab events
-            el.addEventListener('grab-start', function(evt) {
-                console.log('Object grabbed:', el.id);
-                el.setAttribute('material', 'opacity', 0.8);
-                showMessage('Grabbed object!');
-            });
-            
-            el.addEventListener('grab-end', function(evt) {
-                console.log('Object released:', el.id);
-                el.setAttribute('material', 'opacity', 1);
-            });
-            
-            // Handle click for removal
-            el.addEventListener('click', function(evt) {
-                evt.stopPropagation();
-                if (removeMode) {
-                    removeObject(el);
-                }
-            });
-            
-            // Enhanced hover effects
-            el.addEventListener('mouseenter', function() {
-                if (removeMode) {
-                    el.setAttribute('material', 'color', '#FF6B6B');
-                    el.setAttribute('scale', '1.1 1.1 1.1');
-                    showMessage('Click to remove this object');
-                } else {
-                    el.setAttribute('scale', '1.05 1.05 1.05');
-                    el.setAttribute('material', 'opacity', 0.9);
-                }
-            });
-            
-            el.addEventListener('mouseleave', function() {
-                if (removeMode) {
-                    const originalColor = el.getAttribute('data-original-color');
-                    if (originalColor) {
-                        el.setAttribute('material', 'color', originalColor);
-                    }
-                    el.setAttribute('scale', '1 1 1');
-                } else {
-                    el.setAttribute('scale', '1 1 1');
-                    el.setAttribute('material', 'opacity', 1);
-                }
-            });
-        }
-    });
-
-    // Special action button component
-    AFRAME.registerComponent('action-button', {
-        schema: {
-            action: { type: 'string' }
-        },
-        init: function() {
-            const el = this.el;
-            const action = this.data.action;
-            let lastClick = 0;
-            
-            el.addEventListener('click', function(evt) {
-                evt.stopPropagation();
-                const now = Date.now();
-                if (now - lastClick < 300) return; // Debounce
-                lastClick = now;
-                
-                console.log(`${action} button clicked`);
-                
-                switch(action) {
-                    case 'remove':
-                        toggleRemoveMode();
-                        break;
-                    case 'clear':
-                        clearAllObjects();
-                        break;
-                }
-            });
-            
-            el.addEventListener('mouseenter', function() {
-                el.setAttribute('scale', '1.1 1.1 1.1');
-            });
-            
-            el.addEventListener('mouseleave', function() {
-                el.setAttribute('scale', '1 1 1');
-            });
-        }
-    });
-}
-
-// Setup VR controllers with proper raycasting
-function setupVRControllers() {
-    const leftHand = document.querySelector('#leftHand');
-    const rightHand = document.querySelector('#rightHand');
-    
-    if (leftHand) {
-        leftHand.setAttribute('raycaster', {
-            objects: '.clickable',
-            far: 20,
-            interval: 1000
-        });
-    }
-    
-    if (rightHand) {
-        rightHand.setAttribute('raycaster', {
-            objects: '.clickable', 
-            far: 20,
-            interval: 1000
-        });
-    }
-    
-    console.log('VR controllers configured');
-}
-
-// Enhanced menu button setup
-function setupMenuButtons() {
-    console.log('Setting up menu buttons...');
-    
-    // Setup spawn buttons with single event system
-    const spawnButtons = [
-        { id: 'spawn-box', type: 'box' },
-        { id: 'spawn-sphere', type: 'sphere' },
-        { id: 'spawn-cylinder', type: 'cylinder' },
-        { id: 'spawn-cone', type: 'cone' },
-        { id: 'spawn-torus', type: 'torus' }
+    // Object spawn data
+    const spawnableObjects = [
+        { type: 'box', name: 'Cube', defaultColor: '#4CC3D9', size: '0.5 0.5 0.5' },
+        { type: 'sphere', name: 'Ball', defaultColor: '#EF2D5E', radius: 0.3 },
+        { type: 'cylinder', name: 'Cylinder', defaultColor: '#FFC65D', radius: 0.2, height: 0.8 },
+        { type: 'dodecahedron', name: 'Dodecahedron', defaultColor: '#90EE90', radius: 0.3 },
+        { type: 'octahedron', name: 'Octahedron', defaultColor: '#FFB347', radius: 0.3 }
     ];
-    
-    spawnButtons.forEach(button => {
-        const element = document.querySelector(`#${button.id}`);
-        if (element) {
-            element.setAttribute('data-spawn-type', button.type);
-            element.setAttribute('menu-clickable', '');
-            console.log(`Configured ${button.id} for ${button.type}`);
-        }
-    });
-    
-    // Setup action buttons
-    const removeButton = document.querySelector('#remove-mode');
-    if (removeButton) {
-        removeButton.setAttribute('action-button', { action: 'remove' });
-    }
-    
-    const clearButton = document.querySelector('#clear-all');
-    if (clearButton) {
-        clearButton.setAttribute('action-button', { action: 'clear' });
-    }
-    
-    console.log('Menu buttons configured successfully');
-}
 
-// Enhanced event listeners
-function setupEventListeners() {
-    // Keyboard controls with debouncing
-    let lastKeyPress = 0;
+    // Initialize A-Frame components
+    initializeComponents();
     
-    document.addEventListener('keydown', function(evt) {
-        const now = Date.now();
-        if (now - lastKeyPress < 200) return; // Debounce rapid key presses
-        lastKeyPress = now;
-        
-        console.log(`Key pressed: ${evt.key}`);
-        
-        switch(evt.key) {
-            case '1':
-                console.log('Spawning box via keyboard');
-                spawnObjectByType('box');
-                break;
-            case '2':
-                console.log('Spawning sphere via keyboard');
-                spawnObjectByType('sphere');
-                break;
-            case '3':
-                console.log('Spawning cylinder via keyboard');
-                spawnObjectByType('cylinder');
-                break;
-            case '4':
-                console.log('Spawning cone via keyboard');
-                spawnObjectByType('cone');
-                break;
-            case '5':
-                console.log('Spawning torus via keyboard');
-                spawnObjectByType('torus');
-                break;
-            case 'r':
-            case 'R':
-                console.log('Toggling remove mode via keyboard');
-                toggleRemoveMode();
-                break;
-            case 'c':
-            case 'C':
-                console.log('Clearing all objects via keyboard');
-                clearAllObjects();
-                break;
-        }
-    });
+    // Setup event listeners
+    setupEventListeners();
     
-    console.log('Event listeners configured');
-}
+    // Initialize UI
+    initializeUI();
+    
+    // Start performance monitoring
+    startPerformanceMonitoring();
 
-// Enhanced spawn function with better VR support
-function spawnObjectByType(type) {
-    if (!sceneReady) {
-        console.warn('Scene not ready, cannot spawn object');
-        return;
-    }
-    
-    if (isSpawning) {
-        console.warn('Already spawning, please wait');
-        return;
-    }
-    
-    if (objectCounter >= maxObjects) {
-        showMessage('Maximum objects reached!');
-        return;
-    }
-    
-    const config = OBJECT_CONFIGS[type];
-    if (!config) {
-        console.error(`Unknown object type: ${type}`);
-        return;
-    }
-    
-    isSpawning = true;
-    console.log(`Spawning ${type} with color ${config.color}`);
-    
-    const scene = document.querySelector('a-scene');
-    const camera = document.querySelector('#head');
-    
-    // Enhanced spawn position calculation
-    let spawnPos = { x: 0, y: 2, z: -1 };
-    
-    if (camera) {
-        const cameraPos = camera.getAttribute('position') || { x: 0, y: 1.6, z: 3 };
-        spawnPos = {
-            x: cameraPos.x + (Math.random() - 0.5) * 2,
-            y: cameraPos.y + 0.5,
-            z: cameraPos.z - 2
-        };
-    }
-    
-    // Create entity with unique ID
-    const entity = document.createElement('a-entity');
-    entity.id = `object-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-    
-    // Set position and rotation
-    entity.setAttribute('position', spawnPos);
-    entity.setAttribute('rotation', {
-        x: Math.random() * 360,
-        y: Math.random() * 360,
-        z: Math.random() * 360
-    });
-    
-    // Set geometry with enhanced randomization
-    const geometryAttribs = { primitive: config.shape };
-    
-    switch(type) {
-        case 'box':
-            geometryAttribs.width = 0.4 + Math.random() * 0.4;
-            geometryAttribs.height = 0.4 + Math.random() * 0.4;
-            geometryAttribs.depth = 0.4 + Math.random() * 0.4;
-            break;
-        case 'sphere':
-            geometryAttribs.radius = 0.2 + Math.random() * 0.25;
-            break;
-        case 'cylinder':
-            geometryAttribs.radius = 0.15 + Math.random() * 0.2;
-            geometryAttribs.height = 0.4 + Math.random() * 0.5;
-            break;
-        case 'cone':
-            geometryAttribs.radiusBottom = 0.15 + Math.random() * 0.2;
-            geometryAttribs.height = 0.4 + Math.random() * 0.5;
-            break;
-        case 'torus':
-            geometryAttribs.radius = 0.25 + Math.random() * 0.2;
-            geometryAttribs.radiusTubular = 0.04 + Math.random() * 0.04;
-            break;
-    }
-    
-    entity.setAttribute('geometry', geometryAttribs);
-    
-    // Enhanced material with better VR visibility
-    entity.setAttribute('material', {
-        color: config.color,
-        roughness: 0.6,
-        metalness: 0.2,
-        transparent: false,
-        opacity: 1
-    });
-    
-    // Store original color and add enhanced physics
-    entity.setAttribute('data-original-color', config.color);
-    entity.setAttribute('dynamic-body', { 
-        mass: 1, 
-        shape: 'auto',
-        linearDamping: 0.1,
-        angularDamping: 0.1
-    });
-    entity.setAttribute('shadow', 'cast: true; receive: true');
-    
-    // Add enhanced interactable component
-    entity.setAttribute('interactable-object', '');
-    entity.classList.add('spawning');
-    
-    // Add to scene with animation
-    entity.setAttribute('scale', '0.1 0.1 0.1');
-    scene.appendChild(entity);
-    
-    // Animate spawn
-    entity.setAttribute('animation', {
-        property: 'scale',
-        to: '1 1 1',
-        dur: 500,
-        easing: 'easeOutElastic'
-    });
-    
-    spawnedObjects.push(entity);
-    objectCounter++;
-    updateObjectCounter();
-    
-    // Show enhanced spawn indicator
-    showSpawnIndicator(spawnPos);
-    
-    // Remove spawning state and animation class
-    setTimeout(() => {
-        entity.classList.remove('spawning');
-        entity.removeAttribute('animation');
-        isSpawning = false;
-    }, 500);
-    
-    console.log(`Successfully spawned ${type} object (total: ${objectCounter})`);
-    showMessage(`✨ Spawned ${type} object!`);
-}
-
-// Enhanced remove mode with better VR controller support
-function toggleRemoveMode() {
-    removeMode = !removeMode;
-    const removeButton = document.querySelector('#remove-mode');
-    const removeModeIndicator = document.querySelector('#remove-mode-indicator');
-    const leftHand = document.querySelector('#leftHand');
-    const rightHand = document.querySelector('#rightHand');
-    
-    if (removeMode) {
-        // Update button appearance
-        if (removeButton) {
-            removeButton.setAttribute('material', 'color', '#C0392B');
-            removeButton.setAttribute('animation__pulse', {
-                property: 'scale',
-                to: '1.2 1.2 1.2',
-                dir: 'alternate',
-                dur: 500,
-                loop: true
-            });
-        }
+    /**
+     * Register custom A-Frame components
+     */
+    function initializeComponents() {
         
-        // Show remove mode indicator
-        if (removeModeIndicator) {
-            removeModeIndicator.style.display = 'block !important';
-            removeModeIndicator.style.animation = 'pulse 1s infinite';
-        }
-        
-        // Update VR controller raycasters to target objects
-        if (leftHand) {
-            leftHand.setAttribute('raycaster', {
-                objects: '.clickable, .interactable, .grabbable',
-                far: 20,
-                interval: 100
-            });
-        }
-        if (rightHand) {
-            rightHand.setAttribute('raycaster', {
-                objects: '.clickable, .interactable, .grabbable',
-                far: 20,
-                interval: 100
-            });
-        }
-        
-        // Add visual feedback to all spawned objects
-        spawnedObjects.forEach(obj => {
-            if (obj && obj.parentNode) {
-                obj.classList.add('remove-mode-active');
-                obj.setAttribute('animation__glow', {
-                    property: 'material.opacity',
-                    to: '0.6',
-                    dir: 'alternate',
-                    dur: 800,
-                    loop: true
-                });
-                obj.setAttribute('animation__outline', {
-                    property: 'scale',
-                    to: '1.05 1.05 1.05',
-                    dir: 'alternate',
-                    dur: 600,
-                    loop: true
-                });
+        // Cursor listener component for click interactions
+        AFRAME.registerComponent('cursor-listener', {
+            init: function() {
+                this.el.addEventListener('click', this.onClick.bind(this));
+                this.el.addEventListener('mouseenter', this.onMouseEnter.bind(this));
+                this.el.addEventListener('mouseleave', this.onMouseLeave.bind(this));
+            },
+            onClick: function(evt) {
+                const objectType = this.el.getAttribute('data-object-type');
+                if (objectType) {
+                    const spawnData = spawnableObjects.find(obj => obj.type === objectType);
+                    if (spawnData) {
+                        spawnInteractiveObject(spawnData, {x: 0, y: 2, z: -1});
+                        console.log('UI button spawned:', objectType);
+                    }
+                }
+            },
+            onMouseEnter: function() {
+                this.el.setAttribute('scale', '1.1 1.1 1.1');
+                this.el.classList.add('highlighted');
+            },
+            onMouseLeave: function() {
+                this.el.setAttribute('scale', '1 1 1');
+                this.el.classList.remove('highlighted');
             }
         });
         
-        showMessage('🗑️ REMOVE MODE ON - Point and click objects to delete them');
-        console.log('Remove mode activated with enhanced VR targeting');
-    } else {
-        // Reset button appearance
-        if (removeButton) {
-            removeButton.setAttribute('material', 'color', '#E74C3C');
-            removeButton.removeAttribute('animation__pulse');
-            removeButton.setAttribute('scale', '1 1 1');
-        }
-        
-        // Hide remove mode indicator
-        if (removeModeIndicator) {
-            removeModeIndicator.style.display = 'none !important';
-        }
-        
-        // Reset VR controller raycasters to menu only
-        if (leftHand) {
-            leftHand.setAttribute('raycaster', {
-                objects: '.clickable',
-                far: 20,
-                interval: 1000
-            });
-        }
-        if (rightHand) {
-            rightHand.setAttribute('raycaster', {
-                objects: '.clickable',
-                far: 20,
-                interval: 1000
-            });
-        }
-        
-        // Remove visual feedback from all objects
-        spawnedObjects.forEach(obj => {
-            if (obj && obj.parentNode) {
-                obj.classList.remove('remove-mode-active');
-                obj.removeAttribute('animation__glow');
-                obj.removeAttribute('animation__outline');
-                obj.setAttribute('material', 'opacity', 1);
-                obj.setAttribute('scale', '1 1 1');
-                const originalColor = obj.getAttribute('data-original-color');
-                if (originalColor) {
-                    obj.setAttribute('material', 'color', originalColor);
+        // Enhanced grabbable component with haptic feedback
+        AFRAME.registerComponent('enhanced-grabbable', {
+            schema: {
+                startButtons: {default: 'triggerdown'},
+                endButtons: {default: 'triggerup'}
+            },
+            init: function() {
+                this.el.addEventListener('grab-start', this.onGrabStart.bind(this));
+                this.el.addEventListener('grab-end', this.onGrabEnd.bind(this));
+                this.el.addEventListener('stretch-start', this.onStretchStart.bind(this));
+                this.el.addEventListener('stretch-end', this.onStretchEnd.bind(this));
+            },
+            onGrabStart: function(evt) {
+                // Add haptic feedback
+                if (evt.detail.hand && evt.detail.hand.components['meta-touch-controls']) {
+                    evt.detail.hand.components['meta-touch-controls'].pulse(0.5, 100);
+                }
+                // Visual feedback
+                this.el.setAttribute('material', 'opacity', 0.8);
+                this.el.setAttribute('scale', '1.1 1.1 1.1');
+                
+                console.log('Object grabbed:', this.el.id || 'unnamed');
+            },
+            onGrabEnd: function(evt) {
+                // Reset visual state
+                this.el.setAttribute('material', 'opacity', 1);
+                this.el.setAttribute('scale', '1 1 1');
+                
+                console.log('Object released:', this.el.id || 'unnamed');
+            },
+            onStretchStart: function(evt) {
+                console.log('Stretch started:', this.el.id || 'unnamed');
+            },
+            onStretchEnd: function(evt) {
+                console.log('Stretch ended:', this.el.id || 'unnamed');
+            }
+        });
+
+        // Object spawner component
+        AFRAME.registerComponent('object-spawner', {
+            schema: {
+                objectType: {type: 'string', default: 'box'},
+                spawnPosition: {type: 'vec3', default: {x: 0, y: 2, z: -1}}
+            },
+            init: function() {
+                this.el.addEventListener('click', this.spawnObject.bind(this));
+                this.el.addEventListener('raycaster-intersected', this.onHover.bind(this));
+                this.el.addEventListener('raycaster-intersected-cleared', this.onHoverEnd.bind(this));
+            },
+            onHover: function() {
+                this.el.classList.add('highlighted');
+                this.el.setAttribute('scale', '1.1 1.1 1.1');
+            },
+            onHoverEnd: function() {
+                this.el.classList.remove('highlighted');
+                this.el.setAttribute('scale', '1 1 1');
+            },
+            spawnObject: function(evt) {
+                const objectType = this.el.getAttribute('data-object-type') || this.data.objectType;
+                const spawnData = spawnableObjects.find(obj => obj.type === objectType);
+                
+                if (!spawnData) {
+                    console.error('Unknown object type:', objectType);
+                    return;
+                }
+
+                // Haptic feedback
+                if (evt.detail.cursorEl && evt.detail.cursorEl.components['meta-touch-controls']) {
+                    evt.detail.cursorEl.components['meta-touch-controls'].pulse(0.8, 150);
+                }
+
+                spawnInteractiveObject(spawnData, this.data.spawnPosition);
+                
+                console.log('Spawned object:', objectType);
+            }
+        });
+
+        // Delete zone component
+        AFRAME.registerComponent('delete-zone', {
+            init: function() {
+                this.el.addEventListener('collidestart', this.onCollision.bind(this));
+            },
+            onCollision: function(evt) {
+                const collidedEl = evt.detail.target.el;
+                
+                if (collidedEl.classList.contains('interactive-object')) {
+                    // Visual effect before deletion
+                    collidedEl.setAttribute('animation', {
+                        property: 'scale',
+                        to: '0 0 0',
+                        dur: 300,
+                        easing: 'easeInQuad'
+                    });
+                    
+                    setTimeout(() => {
+                        if (collidedEl.parentNode) {
+                            collidedEl.parentNode.removeChild(collidedEl);
+                            performanceStats.objects--;
+                            console.log('Object deleted');
+                        }
+                    }, 300);
                 }
             }
         });
-        
-        showMessage('✅ Remove mode OFF');
-        console.log('Remove mode deactivated');
-    }
-}
 
-// Enhanced object removal with better animation
-function removeObject(objectEl) {
-    if (!objectEl || !objectEl.parentNode) return;
-    
-    console.log(`Removing object: ${objectEl.id}`);
-    
-    // Enhanced removal animation
-    objectEl.setAttribute('animation__shrink', {
-        property: 'scale',
-        to: '0 0 0',
-        dur: 400,
-        easing: 'easeInQuint'
-    });
-    
-    objectEl.setAttribute('animation__spin', {
-        property: 'rotation',
-        to: '720 720 720',
-        dur: 400,
-        easing: 'easeInQuint'
-    });
-    
-    objectEl.setAttribute('animation__fade', {
-        property: 'material.opacity',
-        to: '0',
-        dur: 300
-    });
-    
-    setTimeout(() => {
-        if (objectEl.parentNode) {
-            objectEl.parentNode.removeChild(objectEl);
-        }
-        
-        // Update counter and array
-        const index = spawnedObjects.indexOf(objectEl);
-        if (index > -1) {
-            spawnedObjects.splice(index, 1);
-        }
-        objectCounter--;
-        updateObjectCounter();
-        
-        console.log(`Object removed (remaining: ${objectCounter})`);
-        showMessage('💥 Object destroyed!');
-    }, 400);
-}
-
-// Enhanced clear all with staggered animation
-function clearAllObjects() {
-    console.log('Clearing all objects with animation');
-    
-    if (spawnedObjects.length === 0) {
-        showMessage('No objects to clear!');
-        return;
-    }
-    
-    // Staggered removal animation
-    spawnedObjects.forEach((obj, index) => {
-        if (obj && obj.parentNode) {
-            setTimeout(() => {
-                obj.setAttribute('animation__clear', {
-                    property: 'scale',
-                    to: '0 0 0',
-                    dur: 300
-                });
-                obj.setAttribute('animation__fade', {
-                    property: 'material.opacity',
-                    to: '0',
-                    dur: 250
-                });
+        // Performance tracker component
+        AFRAME.registerComponent('performance-tracker', {
+            init: function() {
+                this.frameCount = 0;
+                this.lastTime = performance.now();
+                this.tick = AFRAME.utils.throttle(this.tick, 1000, this);
+            },
+            tick: function() {
+                this.frameCount++;
+                const currentTime = performance.now();
                 
-                setTimeout(() => {
-                    if (obj.parentNode) {
-                        obj.parentNode.removeChild(obj);
-                    }
-                }, 300);
-            }, index * 50); // Stagger by 50ms
-        }
-    });
-    
-    // Reset counters after animation
-    setTimeout(() => {
-        spawnedObjects = [];
-        objectCounter = 0;
-        updateObjectCounter();
-        
-        if (removeMode) {
-            toggleRemoveMode();
-        }
-        
-        console.log('All objects cleared');
-        showMessage('🧹 All objects cleared with style!');
-    }, spawnedObjects.length * 50 + 300);
-}
-
-// Enhanced spawn indicator
-function showSpawnIndicator(position) {
-    const indicator = document.querySelector('#spawn-indicator');
-    if (indicator) {
-        indicator.setAttribute('position', position);
-        indicator.setAttribute('visible', true);
-        indicator.setAttribute('scale', '0.5 0.5 0.5');
-        
-        // Enhanced spawn animation
-        indicator.setAttribute('animation__grow', {
-            property: 'scale',
-            to: '1.5 1.5 1.5',
-            dur: 300,
-            easing: 'easeOutQuad'
+                if (currentTime - this.lastTime >= 1000) {
+                    performanceStats.fps = Math.round(this.frameCount * 1000 / (currentTime - this.lastTime));
+                    performanceStats.objects = document.querySelectorAll('.interactive-object').length;
+                    performanceStats.physics = document.querySelectorAll('[dynamic-body]').length;
+                    
+                    updatePerformanceDisplay();
+                    
+                    this.frameCount = 0;
+                    this.lastTime = currentTime;
+                }
+            }
         });
+
+        // Enhanced raycaster for better VR interaction
+        AFRAME.registerComponent('enhanced-raycaster', {
+            dependencies: ['raycaster'],
+            init: function() {
+                this.el.addEventListener('raycaster-intersection', this.onIntersection.bind(this));
+                this.el.addEventListener('raycaster-intersection-cleared', this.onIntersectionCleared.bind(this));
+            },
+            onIntersection: function(evt) {
+                const intersectedEl = evt.detail.els[0];
+                if (intersectedEl && intersectedEl.classList.contains('interactive-object')) {
+                    intersectedEl.classList.add('hoverable');
+                }
+            },
+            onIntersectionCleared: function(evt) {
+                if (evt.detail.clearedEls) {
+                    evt.detail.clearedEls.forEach(el => {
+                        if (el.classList.contains('interactive-object')) {
+                            el.classList.remove('hoverable');
+                        }
+                    });
+                }
+            }
+        });
+    }
+
+    /**
+     * Setup event listeners for the scene
+     */
+    function setupEventListeners() {
+        const scene = document.querySelector('a-scene');
         
-        setTimeout(() => {
-            indicator.setAttribute('animation__shrink', {
-                property: 'scale',
-                to: '0 0 0',
-                dur: 200
+        // Scene loaded event
+        scene.addEventListener('loaded', function() {
+            console.log('A-Frame scene loaded');
+            hideLoadingScreen();
+            setupSpawnButtons();
+            setupDeleteZone();
+            setupControllers();
+            setupVRButton();
+        });
+
+        // VR mode events
+        scene.addEventListener('enter-vr', function() {
+            isVRMode = true;
+            console.log('Entered VR mode');
+            document.querySelector('.vr-ui').style.display = 'none';
+            document.querySelector('.desktop-controls').style.display = 'none';
+        });
+
+        scene.addEventListener('exit-vr', function() {
+            isVRMode = false;
+            console.log('Exited VR mode');
+            document.querySelector('.vr-ui').style.display = 'block';
+            document.querySelector('.desktop-controls').style.display = 'block';
+        });
+
+        // Error handling
+        window.addEventListener('error', function(evt) {
+            console.error('Application error:', evt.error);
+            showErrorMessage('An error occurred. Please refresh the page.');
+        });
+
+        // Keyboard shortcuts for desktop testing
+        document.addEventListener('keydown', function(evt) {
+            if (!isVRMode) {
+                switch(evt.key) {
+                    case '1':
+                        spawnInteractiveObject(spawnableObjects[0], {x: 0, y: 2, z: -1});
+                        break;
+                    case '2':
+                        spawnInteractiveObject(spawnableObjects[1], {x: 0, y: 2, z: -1});
+                        break;
+                    case '3':
+                        spawnInteractiveObject(spawnableObjects[2], {x: 0, y: 2, z: -1});
+                        break;
+                    case '4':
+                        spawnInteractiveObject(spawnableObjects[3], {x: 0, y: 2, z: -1});
+                        break;
+                    case '5':
+                        spawnInteractiveObject(spawnableObjects[4], {x: 0, y: 2, z: -1});
+                        break;
+                    case 'p':
+                        togglePerformanceStats();
+                        break;
+                    case 'd':
+                        toggleDebugMode();
+                        break;
+                }
+            }
+        });
+    }
+
+    /**
+     * Setup VR Enter button
+     */
+    function setupVRButton() {
+        const enterVRButton = document.getElementById('enterVRButton');
+        const scene = document.querySelector('a-scene');
+        
+        if (enterVRButton && scene) {
+            enterVRButton.addEventListener('click', function() {
+                scene.enterVR();
             });
             
-            setTimeout(() => {
-                indicator.setAttribute('visible', false);
-                indicator.removeAttribute('animation__grow');
-                indicator.removeAttribute('animation__shrink');
-            }, 200);
-        }, 800);
+            // Check VR availability
+            if (navigator.xr) {
+                navigator.xr.isSessionSupported('immersive-vr').then(function(supported) {
+                    if (!supported) {
+                        enterVRButton.textContent = 'VR Not Available';
+                        enterVRButton.disabled = true;
+                    }
+                });
+            } else {
+                enterVRButton.textContent = 'WebXR Not Supported';
+                enterVRButton.disabled = true;
+            }
+        }
     }
-}
 
-// Enhanced UI functions (keeping all original functionality)
-function addRemoveModeIndicator() {
-    const indicator = document.createElement('div');
-    indicator.id = 'remove-mode-indicator';
-    indicator.innerHTML = '🗑️ REMOVE MODE ACTIVE';
-    
-    indicator.style.cssText = `
-        position: fixed !important;
-        top: 70px !important;
-        right: 20px !important;
-        background: #E74C3C !important;
-        color: white !important;
-        padding: 10px 15px !important;
-        border-radius: 8px !important;
-        font-weight: bold !important;
-        font-size: 14px !important;
-        z-index: 1000 !important;
-        display: none !important;
-        border: 2px solid #C0392B !important;
-        text-align: center !important;
-        box-shadow: 0 0 15px rgba(231, 76, 60, 0.7) !important;
-    `;
-    
-    document.body.appendChild(indicator);
-    console.log('Enhanced remove mode indicator added');
-}
+    /**
+     * Setup spawn buttons with interaction components
+     */
+    function setupSpawnButtons() {
+        const spawnButtons = document.querySelectorAll('.spawn-button');
+        spawnButtons.forEach((button, index) => {
+            button.setAttribute('object-spawner', '');
+            button.setAttribute('class', button.getAttribute('class') + ' interactive-button');
+            
+            // Add direct click event listeners for desktop interaction
+            button.addEventListener('click', function() {
+                const objectType = this.getAttribute('data-object-type');
+                const spawnData = spawnableObjects.find(obj => obj.type === objectType);
+                if (spawnData) {
+                    spawnInteractiveObject(spawnData, {x: 0, y: 2, z: -1});
+                    console.log('Desktop click spawned:', objectType);
+                }
+            });
+        });
+    }
 
-function addInstructions() {
-    const instructions = document.createElement('div');
-    instructions.className = 'instructions';
-    instructions.innerHTML = `
-        <h3>🎮 VR Object Room Controls</h3>
-        <ul>
-            <li><strong>1:</strong> Spawn Box (Blue)</li>
-            <li><strong>2:</strong> Spawn Sphere (Red)</li>
-            <li><strong>3:</strong> Spawn Cylinder (Yellow)</li>
-            <li><strong>4:</strong> Spawn Cone (Green)</li>
-            <li><strong>5:</strong> Spawn Torus (Purple)</li>
-            <li><strong>R:</strong> Toggle remove mode</li>
-            <li><strong>C:</strong> Clear all objects</li>
-        </ul>
-        <p><em>In VR: Use controllers to point and click!</em></p>
-    `;
-    
-    instructions.style.cssText = `
-        position: fixed !important;
-        top: 10px !important;
-        left: 10px !important;
-        background: rgba(44, 62, 80, 0.9) !important;
-        color: #ECF0F1 !important;
-        padding: 15px !important;
-        border-radius: 10px !important;
-        font-family: Arial, sans-serif !important;
-        font-size: 12px !important;
-        z-index: 1000 !important;
-        border: 2px solid #34495E !important;
-        box-shadow: 0 4px 8px rgba(0,0,0,0.3) !important;
-        max-width: 250px !important;
-    `;
-    
-    document.body.appendChild(instructions);
-    console.log('Enhanced instructions added');
-}
+    /**
+     * Setup delete zone
+     */
+    function setupDeleteZone() {
+        const deleteZone = document.querySelector('#delete-zone');
+        if (deleteZone) {
+            deleteZone.setAttribute('delete-zone', '');
+        }
+    }
 
-function addObjectCounter() {
-    const counter = document.createElement('div');
-    counter.className = 'object-counter';
-    counter.id = 'object-counter';
-    counter.innerHTML = `Objects: <span id="count">0</span>/${maxObjects}`;
-    
-    counter.style.cssText = `
-        position: fixed !important;
-        top: 20px !important;
-        right: 20px !important;
-        background: #2C3E50 !important;
-        color: #ECF0F1 !important;
-        padding: 12px 18px !important;
-        border-radius: 10px !important;
-        border: 2px solid #34495E !important;
-        font-family: Arial, sans-serif !important;
-        font-size: 16px !important;
-        font-weight: bold !important;
-        z-index: 1000 !important;
-        display: block !important;
-        min-width: 140px !important;
-        text-align: center !important;
-        box-shadow: 0 4px 8px rgba(0,0,0,0.3) !important;
-    `;
-    
-    document.body.appendChild(counter);
-    console.log('Enhanced object counter added');
-}
+    /**
+     * Setup VR controllers with enhanced components
+     */
+    function setupControllers() {
+        const leftHand = document.querySelector('#leftHand');
+        const rightHand = document.querySelector('#rightHand');
 
-function updateObjectCounter() {
-    const counter = document.querySelector('#object-counter');
-    const countSpan = document.querySelector('#count');
-    
-    if (counter && countSpan) {
-        countSpan.textContent = objectCounter;
+        if (leftHand) {
+            leftHand.setAttribute('enhanced-raycaster', '');
+            leftHand.setAttribute('sphere-collider', 'objects: .interactive-object');
+        }
+
+        if (rightHand) {
+            rightHand.setAttribute('enhanced-raycaster', '');
+            rightHand.setAttribute('sphere-collider', 'objects: .interactive-object');
+        }
+
+        // Add performance tracker to camera rig
+        const cameraRig = document.querySelector('#cameraRig');
+        if (cameraRig) {
+            cameraRig.setAttribute('performance-tracker', '');
+        }
+    }
+
+    /**
+     * Spawn an interactive object with physics and grab capabilities
+     */
+    function spawnInteractiveObject(spawnData, position) {
+        const scene = document.querySelector('a-scene');
+        const entity = document.createElement('a-entity');
         
-        // Enhanced color feedback
-        if (objectCounter >= maxObjects) {
-            counter.style.backgroundColor = '#E74C3C !important';
-            counter.style.color = '#FFFFFF !important';
-            counter.style.animation = 'pulse 1s infinite';
-        } else if (objectCounter >= maxObjects * 0.8) {
-            counter.style.backgroundColor = '#F39C12 !important';
-            counter.style.color = '#FFFFFF !important';
-            counter.style.animation = '';
-        } else {
-            counter.style.backgroundColor = '#2C3E50 !important';
-            counter.style.color = '#ECF0F1 !important';
-            counter.style.animation = '';
+        objectCounter++;
+        entity.setAttribute('id', `spawned-object-${objectCounter}`);
+        entity.setAttribute('class', 'interactive-object');
+        
+        // Set position with slight randomization
+        const spawnPos = {
+            x: position.x + (Math.random() - 0.5) * 0.5,
+            y: position.y + Math.random() * 0.5,
+            z: position.z + (Math.random() - 0.5) * 0.5
+        };
+        entity.setAttribute('position', spawnPos);
+        
+        // Set geometry based on type
+        switch(spawnData.type) {
+            case 'box':
+                entity.setAttribute('geometry', {
+                    primitive: 'box',
+                    width: 0.5,
+                    height: 0.5,
+                    depth: 0.5
+                });
+                entity.setAttribute('dynamic-body', 'shape: box; mass: 1');
+                break;
+            case 'sphere':
+                entity.setAttribute('geometry', {
+                    primitive: 'sphere',
+                    radius: spawnData.radius || 0.3
+                });
+                entity.setAttribute('dynamic-body', 'shape: sphere; mass: 1');
+                break;
+            case 'cylinder':
+                entity.setAttribute('geometry', {
+                    primitive: 'cylinder',
+                    radius: spawnData.radius || 0.2,
+                    height: spawnData.height || 0.8
+                });
+                entity.setAttribute('dynamic-body', 'shape: cylinder; mass: 1');
+                break;
+            case 'dodecahedron':
+                entity.setAttribute('geometry', {
+                    primitive: 'dodecahedron',
+                    radius: spawnData.radius || 0.3
+                });
+                entity.setAttribute('dynamic-body', 'shape: sphere; mass: 1');
+                break;
+            case 'octahedron':
+                entity.setAttribute('geometry', {
+                    primitive: 'octahedron',
+                    radius: spawnData.radius || 0.3
+                });
+                entity.setAttribute('dynamic-body', 'shape: sphere; mass: 1');
+                break;
         }
         
-        console.log(`Object counter updated: ${objectCounter}/${maxObjects}`);
+        // Set material with random color variation
+        const baseColor = spawnData.defaultColor;
+        entity.setAttribute('material', {
+            color: baseColor,
+            metalness: 0.2,
+            roughness: 0.8
+        });
+        
+        // Add interaction components
+        entity.setAttribute('super-hands', 'colliderEvent: raycaster-intersection; colliderEventProperty: els; colliderEndEvent: raycaster-intersection-cleared; colliderEndEventProperty: clearedEls');
+        entity.setAttribute('grabbable', 'startButtons: triggerdown; endButtons: triggerup');
+        entity.setAttribute('stretchable', 'startButtons: gripdown; endButtons: gripup');
+        entity.setAttribute('draggable', 'startButtons: triggerdown; endButtons: triggerup');
+        entity.setAttribute('enhanced-grabbable', '');
+        
+        scene.appendChild(entity);
+        performanceStats.objects++;
+        
+        console.log(`Spawned ${spawnData.name} at position:`, spawnPos);
     }
-}
 
-function showMessage(message) {
-    console.log('Message:', message);
-    
-    let messageEl = document.querySelector('#temp-message');
-    if (!messageEl) {
-        messageEl = document.createElement('div');
-        messageEl.id = 'temp-message';
-        messageEl.style.cssText = `
-            position: fixed !important;
-            bottom: 30px !important;
-            left: 50% !important;
-            transform: translateX(-50%) !important;
-            background: #3498DB !important;
-            color: white !important;
-            padding: 15px 30px !important;
-            border-radius: 25px !important;
-            font-weight: bold !important;
-            font-size: 16px !important;
-            z-index: 1000 !important;
-            display: none !important;
-            border: 2px solid #2980B9 !important;
-            box-shadow: 0 6px 12px rgba(0,0,0,0.3) !important;
-            animation: slideIn 0.3s ease-out !important;
+    /**
+     * Initialize UI elements
+     */
+    function initializeUI() {
+        // Create loading screen
+        const loadingScreen = document.createElement('div');
+        loadingScreen.className = 'loading-screen';
+        loadingScreen.innerHTML = `
+            <div class="loading-spinner"></div>
+            <div class="loading-text">Loading VR Workshop...</div>
         `;
-        document.body.appendChild(messageEl);
+        document.body.appendChild(loadingScreen);
+
+        // Create VR UI instructions
+        const vrUI = document.createElement('div');
+        vrUI.className = 'vr-ui';
+        vrUI.innerHTML = `
+            <h3>VR Interactive Workshop</h3>
+            <p>Put on your Meta Quest 2 headset and click "Enter VR" to start.</p>
+            <div class="controls-info">
+                <h4>VR Controls:</h4>
+                <ul>
+                    <li>Trigger: Grab objects</li>
+                    <li>Grip: Stretch/scale objects</li>
+                    <li>Point at spawn buttons to create objects</li>
+                    <li>Drag objects to red zone to delete</li>
+                </ul>
+            </div>
+        `;
+        document.body.appendChild(vrUI);
+
+        // Create desktop controls info
+        const desktopControls = document.createElement('div');
+        desktopControls.className = 'desktop-controls';
+        desktopControls.innerHTML = `
+            <h4>Desktop Controls:</h4>
+            <ul>
+                <li>1-5: Spawn objects</li>
+                <li>P: Toggle performance</li>
+                <li>D: Toggle debug mode</li>
+                <li>Mouse: Look around</li>
+                <li>WASD: Move (desktop)</li>
+                <li>Click spawn buttons in scene</li>
+            </ul>
+        `;
+        document.body.appendChild(desktopControls);
+
+        // Create performance stats display
+        const perfStats = document.createElement('div');
+        perfStats.className = 'performance-stats hidden';
+        perfStats.innerHTML = `
+            <div class="stat-line">FPS: <span class="stat-value" id="fps-value">0</span></div>
+            <div class="stat-line">Objects: <span class="stat-value" id="objects-value">0</span></div>
+            <div class="stat-line">Physics: <span class="stat-value" id="physics-value">0</span></div>
+        `;
+        document.body.appendChild(perfStats);
     }
-    
-    messageEl.textContent = message;
-    messageEl.style.display = 'block !important';
-    
-    setTimeout(() => {
-        messageEl.style.animation = 'slideOut 0.3s ease-in !important';
+
+    /**
+     * Hide loading screen
+     */
+    function hideLoadingScreen() {
+        const loadingScreen = document.querySelector('.loading-screen');
+        if (loadingScreen) {
+            loadingScreen.classList.add('hidden');
+            setTimeout(() => {
+                loadingScreen.remove();
+            }, 500);
+        }
+    }
+
+    /**
+     * Show error message
+     */
+    function showErrorMessage(message) {
+        const errorDiv = document.createElement('div');
+        errorDiv.className = 'error-message';
+        errorDiv.innerHTML = `
+            <h3>Error</h3>
+            <p>${message}</p>
+            <button onclick="location.reload()">Reload Page</button>
+        `;
+        document.body.appendChild(errorDiv);
+        
         setTimeout(() => {
-            messageEl.style.display = 'none !important';
-            messageEl.style.animation = 'slideIn 0.3s ease-out !important';
-        }, 300);
-    }, 2200);
-}
+            errorDiv.remove();
+        }, 5000);
+    }
 
-// Enhanced debugging interface
-window.VRApp = {
-    spawn: spawnObjectByType,
-    clear: clearAllObjects,
-    toggleRemove: toggleRemoveMode,
-    getCount: () => objectCounter,
-    getObjects: () => spawnedObjects,
-    isRemoveMode: () => removeMode,
-    isSpawning: () => isSpawning,
-    // New debugging functions
-    forceRemoveMode: () => { removeMode = false; toggleRemoveMode(); },
-    spawnRandom: () => {
-        const types = Object.keys(OBJECT_CONFIGS);
-        const randomType = types[Math.floor(Math.random() * types.length)];
-        spawnObjectByType(randomType);
-    },
-    getStats: () => ({
-        objectCounter,
-        removeMode,
-        isSpawning,
-        sceneReady,
-        objectsInScene: spawnedObjects.length
-    })
-};
+    /**
+     * Start performance monitoring
+     */
+    function startPerformanceMonitoring() {
+        setInterval(() => {
+            // Monitor memory usage if available
+            if (performance.memory) {
+                const memUsed = Math.round(performance.memory.usedJSHeapSize / 1048576);
+                console.log(`Memory usage: ${memUsed}MB`);
+            }
+            
+            // Monitor object count
+            const objectCount = document.querySelectorAll('.interactive-object').length;
+            if (objectCount > 50) {
+                console.warn('High object count detected:', objectCount);
+            }
+        }, 5000);
+    }
 
-console.log('🎮 Enhanced VR Interactive Object Room loaded and ready!');
-console.log('Press 1-5 to spawn objects, R for remove mode, C to clear all');
-console.log('Try VRApp.spawnRandom() in console for fun!');
+    /**
+     * Update performance display
+     */
+    function updatePerformanceDisplay() {
+        const fpsValue = document.getElementById('fps-value');
+        const objectsValue = document.getElementById('objects-value');
+        const physicsValue = document.getElementById('physics-value');
+        
+        if (fpsValue) fpsValue.textContent = performanceStats.fps;
+        if (objectsValue) objectsValue.textContent = performanceStats.objects;
+        if (physicsValue) physicsValue.textContent = performanceStats.physics;
+    }
+
+    /**
+     * Toggle performance stats display
+     */
+    function togglePerformanceStats() {
+        const perfStats = document.querySelector('.performance-stats');
+        if (perfStats) {
+            perfStats.classList.toggle('hidden');
+        }
+    }
+
+    /**
+     * Toggle debug mode
+     */
+    function toggleDebugMode() {
+        const scene = document.querySelector('a-scene');
+        const currentPhysics = scene.getAttribute('physics');
+        const isDebug = currentPhysics.includes('debug: true');
+        
+        scene.setAttribute('physics', `driver: ammo; debug: ${!isDebug}; debugDrawMode: 1`);
+        document.body.classList.toggle('debug-mode');
+        
+        console.log('Debug mode:', !isDebug ? 'enabled' : 'disabled');
+    }
+
+    // Export functions for global access
+    window.VRWorkshop = {
+        spawnObject: spawnInteractiveObject,
+        togglePerformanceStats: togglePerformanceStats,
+        toggleDebugMode: toggleDebugMode,
+        getStats: () => performanceStats
+    };
+
+    console.log('VR Interactive Workshop initialized successfully!');
+});

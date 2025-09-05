@@ -2,171 +2,398 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <title>VR Interactive Object Room - Quest 3 Compatible</title>
+    <title>VR Interactive Workshop - Meta Quest 2</title>
+    <meta name="description" content="Interactive VR scene with physics and grabbable objects">
     <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/donmccurdy/aframe-physics-system@v4.0.1/dist/aframe-physics-system.min.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/wmurphyrd/aframe-super-hands-component@v3.0.3/dist/super-hands.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/supermedium/aframe-extras@v6.1.1/dist/aframe-extras.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/supermedium/aframe-environment-component@1.3.1/dist/aframe-environment-component.min.js"></script>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <a-scene 
-        background="color: #212121" 
-        physics="debug: false; gravity: -9.8"
-        vr-mode-ui="enabled: true"
-        webxr="referenceSpaceType: local-floor; requiredFeatures: local-floor; optionalFeatures: bounded-floor, hand-tracking;">
+        vr-mode-ui="enabled: true; enterVRButton: #enterVRButton; enterARButton: #enterARButton" 
+        embedded
+        physics="driver: ammo; debug: false; debugDrawMode: 1"
+        background="color: #87CEEB">
         
+        <!-- Assets -->
         <a-assets>
-            <!-- Audio assets for feedback -->
-            <audio id="spawn-sound" preload="auto" src="data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmEaBjqV2+/AciMF"></audio>
+            <!-- Materials -->
+            <a-mixin id="grabbable" 
+                     geometry="primitive: box" 
+                     material="color: #4CC3D9" 
+                     dynamic-body="shape: box; mass: 1"
+                     super-hands="colliderEvent: raycaster-intersection; colliderEventProperty: els; colliderEndEvent: raycaster-intersection-cleared; colliderEndEventProperty: clearedEls"
+                     grabbable="startButtons: triggerdown; endButtons: triggerup"
+                     stretchable="startButtons: gripdown; endButtons: gripup"
+                     draggable="startButtons: triggerdown; endButtons: triggerup">
+            </a-mixin>
+            
+            <a-mixin id="sphere-grabbable" 
+                     geometry="primitive: sphere" 
+                     material="color: #EF2D5E" 
+                     dynamic-body="shape: sphere; mass: 1"
+                     super-hands="colliderEvent: raycaster-intersection; colliderEventProperty: els; colliderEndEvent: raycaster-intersection-cleared; colliderEndEventProperty: clearedEls"
+                     grabbable="startButtons: triggerdown; endButtons: triggerup"
+                     stretchable="startButtons: gripdown; endButtons: gripup"
+                     draggable="startButtons: triggerdown; endButtons: triggerup">
+            </a-mixin>
+            
+            <a-mixin id="cylinder-grabbable" 
+                     geometry="primitive: cylinder" 
+                     material="color: #FFC65D" 
+                     dynamic-body="shape: cylinder; mass: 1"
+                     super-hands="colliderEvent: raycaster-intersection; colliderEventProperty: els; colliderEndEvent: raycaster-intersection-cleared; colliderEndEventProperty: clearedEls"
+                     grabbable="startButtons: triggerdown; endButtons: triggerup"
+                     stretchable="startButtons: gripdown; endButtons: gripup"
+                     draggable="startButtons: triggerdown; endButtons: triggerup">
+            </a-mixin>
         </a-assets>
-
-        <!-- VR Controllers -->
-        <a-entity id="leftHand" 
-                  laser-controls="hand: left" 
-                  raycaster="objects: .clickable"
-                  super-hands="colliderEvent: raycaster-intersection;
-                              colliderEventProperty: els;
-                              colliderEndEvent: raycaster-intersection-cleared;
-                              colliderEndEventProperty: clearedEls;">
-        </a-entity>
-        
-        <a-entity id="rightHand" 
-                  laser-controls="hand: right" 
-                  raycaster="objects: .clickable"
-                  super-hands="colliderEvent: raycaster-intersection;
-                              colliderEventProperty: els;
-                              colliderEndEvent: raycaster-intersection-cleared;
-                              colliderEndEventProperty: clearedEls;">
-        </a-entity>
-
-        <!-- Camera/Head -->
-        <a-entity id="head" 
-                  camera 
-                  look-controls 
-                  wasd-controls
-                  position="0 1.6 3">
-        </a-entity>
-
-        <!-- Room Environment -->
-        <!-- Floor -->
-        <a-plane position="0 0 0" 
-                 rotation="-90 0 0" 
-                 width="10" 
-                 height="10" 
-                 color="#8B4513" 
-                 static-body
-                 shadow="receive: true">
-        </a-plane>
-        
-        <!-- Ceiling -->
-        <a-plane position="0 4 0" 
-                 rotation="90 0 0" 
-                 width="10" 
-                 height="10" 
-                 color="#4A4A4A">
-        </a-plane>
-        
-        <!-- Walls -->
-        <a-plane position="0 2 -5" width="10" height="4" color="#6B6B6B" static-body></a-plane>
-        <a-plane position="0 2 5" rotation="0 180 0" width="10" height="4" color="#6B6B6B" static-body></a-plane>
-        <a-plane position="-5 2 0" rotation="0 90 0" width="10" height="4" color="#6B6B6B" static-body></a-plane>
-        <a-plane position="5 2 0" rotation="0 -90 0" width="10" height="4" color="#6B6B6B" static-body></a-plane>
-
-        <!-- Tables -->
-        <a-box position="2 0.5 -2" width="1.5" height="1" depth="0.8" color="#8B4513" static-body shadow="cast: true; receive: true"></a-box>
-        <a-box position="-2 0.4 2" width="1.2" height="0.8" depth="1" color="#A0522D" static-body shadow="cast: true; receive: true"></a-box>
-        <a-box position="0 0.6 -3.5" width="2" height="1.2" depth="0.6" color="#8B4513" static-body shadow="cast: true; receive: true"></a-box>
-
-        <!-- 3D Menu Panel -->
-        <a-entity id="menu-panel" position="-3 2 -2" rotation="0 30 0">
-            <!-- Menu Background -->
-            <a-plane width="2.5" height="3" color="#2C3E50" opacity="0.9"></a-plane>
-            
-            <!-- Menu Title -->
-            <a-text value="OBJECT SPAWNER" position="0 1.2 0.01" align="center" color="#ECF0F1" font="kelsonsans" width="8"></a-text>
-            
-            <!-- Spawn Buttons -->
-            <a-box id="spawn-box" 
-                   position="-0.8 0.6 0.1" 
-                   width="0.6" height="0.3" depth="0.1" 
-                   color="#4CC3D9" 
-                   class="clickable"
-                   shadow="cast: true">
-                <a-text value="BOX" position="0 0 0.06" align="center" color="white" width="6"></a-text>
-            </a-box>
-            
-            <a-sphere id="spawn-sphere" 
-                      position="0.8 0.6 0.1" 
-                      radius="0.15" 
-                      color="#EF2D5E" 
-                      class="clickable"
-                      shadow="cast: true">
-                <a-text value="SPHERE" position="0 0 0.16" align="center" color="white" width="4"></a-text>
-            </a-sphere>
-            
-            <a-cylinder id="spawn-cylinder" 
-                        position="-0.8 0 0.1" 
-                        radius="0.15" height="0.3" 
-                        color="#FFC65D" 
-                        class="clickable"
-                        shadow="cast: true">
-                <a-text value="CYLINDER" position="0 0 0.16" align="center" color="black" width="4"></a-text>
-            </a-cylinder>
-            
-            <a-cone id="spawn-cone" 
-                    position="0.8 0 0.1" 
-                    radius-bottom="0.15" height="0.3" 
-                    color="#7BC8A4" 
-                    class="clickable"
-                    shadow="cast: true">
-                <a-text value="CONE" position="0 0 0.16" align="center" color="white" width="4"></a-text>
-            </a-cone>
-            
-            <a-torus id="spawn-torus" 
-                     position="0 -0.6 0.1" 
-                     radius="0.15" radius-tubular="0.03" 
-                     color="#93648D" 
-                     class="clickable"
-                     shadow="cast: true">
-                <a-text value="TORUS" position="0 0 0.16" align="center" color="white" width="4"></a-text>
-            </a-torus>
-            
-            <!-- Control Buttons -->
-            <a-box id="remove-mode" 
-                   position="-0.8 -1.2 0.1" 
-                   width="0.6" height="0.3" depth="0.1" 
-                   color="#E74C3C" 
-                   class="clickable"
-                   shadow="cast: true">
-                <a-text value="REMOVE" position="0 0 0.06" align="center" color="white" width="5"></a-text>
-            </a-box>
-            
-            <a-box id="clear-all" 
-                   position="0.8 -1.2 0.1" 
-                   width="0.6" height="0.3" depth="0.1" 
-                   color="#34495E" 
-                   class="clickable"
-                   shadow="cast: true">
-                <a-text value="CLEAR" position="0 0 0.06" align="center" color="white" width="5"></a-text>
-            </a-box>
-        </a-entity>
 
         <!-- Lighting -->
         <a-light type="ambient" color="#404040"></a-light>
-        <a-light type="directional" position="2 4 2" color="#FFFFFF" intensity="0.8" shadow="cast: true"></a-light>
-        <a-light type="point" position="0 3 0" color="#FFFFFF" intensity="0.5"></a-light>
+        <a-light type="directional" position="2 4 2" color="#FFFFFF" intensity="0.6"></a-light>
+        <a-light type="point" position="0 3 0" color="#FFFFFF" intensity="0.4"></a-light>
 
-        <!-- Spawn Indicator -->
-        <a-ring id="spawn-indicator" 
-                radius-inner="0.2" 
-                radius-outer="0.3" 
-                color="#00FF00" 
-                opacity="0.7" 
-                visible="false"
-                animation="property: rotation; to: 0 360 0; loop: true; dur: 1000">
-        </a-ring>
+        <!-- Room Structure -->
+        <!-- Floor -->
+        <a-plane 
+            position="0 0 0" 
+            rotation="-90 0 0" 
+            width="10" 
+            height="10" 
+            color="#7BC8A4" 
+            static-body="shape: box">
+        </a-plane>
+
+        <!-- Walls -->
+        <a-plane 
+            position="0 2 -5" 
+            width="10" 
+            height="4" 
+            color="#CCCCCC" 
+            static-body="shape: box">
+        </a-plane>
+        <a-plane 
+            position="0 2 5" 
+            rotation="0 180 0" 
+            width="10" 
+            height="4" 
+            color="#CCCCCC" 
+            static-body="shape: box">
+        </a-plane>
+        <a-plane 
+            position="-5 2 0" 
+            rotation="0 90 0" 
+            width="10" 
+            height="4" 
+            color="#CCCCCC" 
+            static-body="shape: box">
+        </a-plane>
+        <a-plane 
+            position="5 2 0" 
+            rotation="0 -90 0" 
+            width="10" 
+            height="4" 
+            color="#CCCCCC" 
+            static-body="shape: box">
+        </a-plane>
+
+        <!-- Ceiling -->
+        <a-plane 
+            position="0 4 0" 
+            rotation="90 0 0" 
+            width="10" 
+            height="10" 
+            color="#FFFFFF" 
+            static-body="shape: box">
+        </a-plane>
+
+        <!-- Central Platform -->
+        <a-box 
+            position="0 0.1 0" 
+            width="4" 
+            height="0.2" 
+            depth="4" 
+            color="#8B4513" 
+            static-body="shape: box">
+        </a-box>
+
+        <!-- Tables -->
+        <a-box 
+            id="table1"
+            position="2 1 -2" 
+            width="2" 
+            height="0.1" 
+            depth="1" 
+            color="#DEB887" 
+            static-body="shape: box">
+        </a-box>
+        <a-box 
+            id="table2"
+            position="-2 1 2" 
+            width="1.5" 
+            height="0.1" 
+            depth="1.5" 
+            color="#DEB887" 
+            static-body="shape: box">
+        </a-box>
+        <a-box 
+            id="table3"
+            position="3 1 3" 
+            width="1" 
+            height="0.1" 
+            depth="2" 
+            color="#DEB887" 
+            static-body="shape: box">
+        </a-box>
+
+        <!-- Table Legs -->
+        <a-cylinder position="1.5 0.5 -2.3" radius="0.05" height="1" color="#8B4513" static-body></a-cylinder>
+        <a-cylinder position="2.5 0.5 -2.3" radius="0.05" height="1" color="#8B4513" static-body></a-cylinder>
+        <a-cylinder position="1.5 0.5 -1.7" radius="0.05" height="1" color="#8B4513" static-body></a-cylinder>
+        <a-cylinder position="2.5 0.5 -1.7" radius="0.05" height="1" color="#8B4513" static-body></a-cylinder>
+
+        <a-cylinder position="-2.6 0.5 1.4" radius="0.05" height="1" color="#8B4513" static-body></a-cylinder>
+        <a-cylinder position="-1.4 0.5 1.4" radius="0.05" height="1" color="#8B4513" static-body></a-cylinder>
+        <a-cylinder position="-2.6 0.5 2.6" radius="0.05" height="1" color="#8B4513" static-body></a-cylinder>
+        <a-cylinder position="-1.4 0.5 2.6" radius="0.05" height="1" color="#8B4513" static-body></a-cylinder>
+
+        <a-cylinder position="2.8 0.5 2.2" radius="0.05" height="1" color="#8B4513" static-body></a-cylinder>
+        <a-cylinder position="3.2 0.5 2.2" radius="0.05" height="1" color="#8B4513" static-body></a-cylinder>
+        <a-cylinder position="2.8 0.5 3.8" radius="0.05" height="1" color="#8B4513" static-body></a-cylinder>
+        <a-cylinder position="3.2 0.5 3.8" radius="0.05" height="1" color="#8B4513" static-body></a-cylinder>
+
+        <!-- Interactive Objects -->
+        <a-box 
+            class="interactive-object"
+            position="2 1.5 -2" 
+            width="0.5" 
+            height="0.5" 
+            depth="0.5" 
+            color="#4CC3D9" 
+            mixin="grabbable"
+            geometry="primitive: box; width: 0.5; height: 0.5; depth: 0.5">
+        </a-box>
+
+        <a-sphere 
+            class="interactive-object"
+            position="-2 1.5 2" 
+            radius="0.3" 
+            color="#EF2D5E" 
+            mixin="sphere-grabbable"
+            geometry="primitive: sphere; radius: 0.3">
+        </a-sphere>
+
+        <a-cylinder 
+            class="interactive-object"
+            position="3 1.5 3" 
+            radius="0.2" 
+            height="0.8" 
+            color="#FFC65D" 
+            mixin="cylinder-grabbable"
+            geometry="primitive: cylinder; radius: 0.2; height: 0.8">
+        </a-cylinder>
+
+        <a-box 
+            class="interactive-object"
+            position="0 0.6 0" 
+            width="0.3" 
+            height="0.3" 
+            depth="0.3" 
+            color="#7BC8A4" 
+            mixin="grabbable"
+            geometry="primitive: box; width: 0.3; height: 0.3; depth: 0.3">
+        </a-box>
+
+        <a-sphere 
+            class="interactive-object"
+            position="1 1.2 -1" 
+            radius="0.25" 
+            color="#FF6B6B" 
+            mixin="sphere-grabbable"
+            geometry="primitive: sphere; radius: 0.25">
+        </a-sphere>
+
+        <!-- Spawning UI Panel -->
+        <a-entity 
+            id="ui-panel" 
+            position="-4 2 -2" 
+            rotation="0 30 0">
+            <a-plane 
+                width="2" 
+                height="1.5" 
+                color="#333333" 
+                opacity="0.8">
+            </a-plane>
+            <a-text 
+                value="SPAWN OBJECTS" 
+                position="0 0.6 0.01" 
+                align="center" 
+                color="#FFFFFF" 
+                width="8">
+            </a-text>
+            
+            <!-- Spawn Buttons -->
+            <a-box 
+                id="spawn-cube"
+                class="spawn-button clickable"
+                position="-0.6 0.2 0.01" 
+                width="0.3" 
+                height="0.2" 
+                depth="0.05" 
+                color="#4CC3D9" 
+                data-object-type="box"
+                cursor-listener>
+            </a-box>
+            <a-text 
+                value="CUBE" 
+                position="-0.6 0.05 0.02" 
+                align="center" 
+                color="#FFFFFF" 
+                width="4">
+            </a-text>
+
+            <a-sphere 
+                id="spawn-sphere"
+                class="spawn-button clickable"
+                position="-0.2 0.2 0.01" 
+                radius="0.1" 
+                color="#EF2D5E" 
+                data-object-type="sphere"
+                cursor-listener>
+            </a-sphere>
+            <a-text 
+                value="BALL" 
+                position="-0.2 0.05 0.02" 
+                align="center" 
+                color="#FFFFFF" 
+                width="4">
+            </a-text>
+
+            <a-cylinder 
+                id="spawn-cylinder"
+                class="spawn-button clickable"
+                position="0.2 0.2 0.01" 
+                radius="0.08" 
+                height="0.2" 
+                color="#FFC65D" 
+                data-object-type="cylinder"
+                cursor-listener>
+            </a-cylinder>
+            <a-text 
+                value="CYLINDER" 
+                position="0.2 0.05 0.02" 
+                align="center" 
+                color="#FFFFFF" 
+                width="3">
+            </a-text>
+
+            <a-dodecahedron 
+                id="spawn-dodeca"
+                class="spawn-button clickable"
+                position="0.6 0.2 0.01" 
+                radius="0.1" 
+                color="#90EE90" 
+                data-object-type="dodecahedron"
+                cursor-listener>
+            </a-dodecahedron>
+            <a-text 
+                value="DODECA" 
+                position="0.6 0.05 0.02" 
+                align="center" 
+                color="#FFFFFF" 
+                width="3">
+            </a-text>
+
+            <a-octahedron 
+                id="spawn-octa"
+                class="spawn-button clickable"
+                position="0 -0.2 0.01" 
+                radius="0.1" 
+                color="#FFB347" 
+                data-object-type="octahedron"
+                cursor-listener>
+            </a-octahedron>
+            <a-text 
+                value="OCTAHEDRON" 
+                position="0 -0.35 0.02" 
+                align="center" 
+                color="#FFFFFF" 
+                width="3">
+            </a-text>
+        </a-entity>
+
+        <!-- Delete Zone -->
+        <a-cylinder 
+            id="delete-zone"
+            position="4 1.1 4" 
+            radius="0.5" 
+            height="0.2" 
+            color="#FF4444" 
+            opacity="0.7" 
+            static-body>
+            <a-text 
+                value="DELETE\nZONE" 
+                position="0 0.2 0" 
+                align="center" 
+                color="#FFFFFF" 
+                width="8">
+            </a-text>
+        </a-cylinder>
+
+        <!-- VR Controllers and Camera -->
+        <a-entity 
+            id="cameraRig" 
+            movement-controls="fly: false; constrainToNavMesh: false" 
+            position="0 1.6 3">
+            
+            <a-camera 
+                id="head" 
+                camera="fov: 80; zoom: 1;"
+                position="0 0 0"
+                look-controls="pointerLockEnabled: true"
+                cursor="objects: .clickable; rayOrigin: mouse">
+            </a-camera>
+
+            <!-- Left Hand -->
+            <a-entity 
+                id="leftHand"
+                meta-touch-controls="hand: left; model: true"
+                hand-controls="hand: left; handModelStyle: lowPoly; color: #ffcccc"
+                super-hands="colliderEvent: raycaster-intersection; colliderEventProperty: els; colliderEndEvent: raycaster-intersection-cleared; colliderEndEventProperty: clearedEls"
+                raycaster="objects: .interactive-object, .spawn-button, .clickable; far: 3; interval: 0; showLine: true; lineColor: #4CC3D9; lineOpacity: 0.5">
+            </a-entity>
+
+            <!-- Right Hand -->
+            <a-entity 
+                id="rightHand"
+                meta-touch-controls="hand: right; model: true"
+                hand-controls="hand: right; handModelStyle: lowPoly; color: #ffcccc"
+                super-hands="colliderEvent: raycaster-intersection; colliderEventProperty: els; colliderEndEvent: raycaster-intersection-cleared; colliderEndEventProperty: clearedEls"
+                raycaster="objects: .interactive-object, .spawn-button, .clickable; far: 3; interval: 0; showLine: true; lineColor: #EF2D5E; lineOpacity: 0.5">
+            </a-entity>
+        </a-entity>
+
+        <!-- Teleportation -->
+        <a-cylinder 
+            id="navmesh" 
+            radius="4.5" 
+            height="0.1" 
+            position="0 0.05 0" 
+            color="#7BC8A4" 
+            visible="false" 
+            nav-mesh>
+        </a-cylinder>
 
     </a-scene>
-
+    
+    <!-- Custom VR Enter Button -->
+    <button id="enterVRButton" class="enter-vr-btn">Enter VR</button>
+    <button id="enterARButton" class="enter-ar-btn" style="display: none;">Enter AR</button>
+    
     <script src="app.js"></script>
 </body>
 </html>
