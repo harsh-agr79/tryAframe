@@ -378,15 +378,6 @@ document.addEventListener('DOMContentLoaded', function() {
         
         objectCounter++;
         entity.setAttribute('id', `spawned-object-${objectCounter}`);
-        entity.setAttribute('class', 'interactive-object grabbable');
-        entity.setAttribute('class', 'interactive-object');
-        entity.setAttribute('hoverable', '');
-        entity.setAttribute('clickable', '');
-        entity.setAttribute('super-hands', '');
-        entity.setAttribute('grabbable', 'startButtons: triggerdown; endButtons: triggerup');
-        entity.setAttribute('stretchable', 'startButtons: gripdown; endButtons: gripup');
-        entity.setAttribute('draggable', 'startButtons: triggerdown; endButtons: triggerup');
-        entity.setAttribute('enhanced-grabbable', '');
         
         // Set position with slight randomization
         const spawnPos = {
@@ -396,7 +387,7 @@ document.addEventListener('DOMContentLoaded', function() {
         };
         entity.setAttribute('position', spawnPos);
         
-        // Set geometry based on type
+        // Set geometry and physics based on type
         switch(spawnData.type) {
             case 'box':
                 entity.setAttribute('geometry', {
@@ -436,21 +427,35 @@ document.addEventListener('DOMContentLoaded', function() {
                 });
                 entity.setAttribute('dynamic-body', 'shape: sphere; mass: 1');
                 break;
+            case 'model':
+                // For GLB models
+                if (spawnData.gltfSelector) {
+                    entity.setAttribute('gltf-model', spawnData.gltfSelector);
+                } else if (spawnData.gltfUrl) {
+                    entity.setAttribute('gltf-model', spawnData.gltfUrl);
+                }
+                if (spawnData.scale) entity.setAttribute('scale', spawnData.scale);
+                entity.setAttribute('dynamic-body', 'shape: hull; mass: 1');
+                break;
         }
         
-        // Set material with random color variation
-        const baseColor = spawnData.defaultColor;
+        // Set material
         entity.setAttribute('material', {
-            color: baseColor,
+            color: spawnData.defaultColor,
             metalness: 0.2,
             roughness: 0.8
         });
         
-        // Add interaction components
+        // Set class ONCE (this was being set twice before)
+        entity.setAttribute('class', 'interactive-object grabbable');
+        
+        // Add interaction components in the right order (following your mixin pattern)
         entity.setAttribute('super-hands', 'colliderEvent: raycaster-intersection; colliderEventProperty: els; colliderEndEvent: raycaster-intersection-cleared; colliderEndEventProperty: clearedEls');
         entity.setAttribute('grabbable', 'startButtons: triggerdown; endButtons: triggerup');
         entity.setAttribute('stretchable', 'startButtons: gripdown; endButtons: gripup');
         entity.setAttribute('draggable', 'startButtons: triggerdown; endButtons: triggerup');
+        
+        // Add your custom component last
         entity.setAttribute('enhanced-grabbable', '');
         
         scene.appendChild(entity);
@@ -458,6 +463,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         console.log(`Spawned ${spawnData.name} at position:`, spawnPos);
     }
+
 
     /**
      * Initialize UI elements
