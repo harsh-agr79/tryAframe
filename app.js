@@ -460,6 +460,8 @@ document.addEventListener('DOMContentLoaded', function() {
         
         scene.appendChild(entity);
         performanceStats.objects++;
+
+        initializeComponents();
         
         console.log(`Spawned ${spawnData.name} at position:`, spawnPos);
     }
