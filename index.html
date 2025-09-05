@@ -1,399 +1,60 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <meta charset="utf-8">
-    <title>VR Interactive Workshop - Meta Quest 2</title>
-    <meta name="description" content="Interactive VR scene with physics and grabbable objects">
-    <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/gh/donmccurdy/aframe-physics-system@v4.0.1/dist/aframe-physics-system.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/gh/wmurphyrd/aframe-super-hands-component@v3.0.3/dist/super-hands.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/gh/supermedium/aframe-extras@v6.1.1/dist/aframe-extras.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/gh/supermedium/aframe-environment-component@1.3.1/dist/aframe-environment-component.min.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VR Object Creator - Meta Quest 2</title>
     <link rel="stylesheet" href="style.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/webxr/VRButton.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
 </head>
 <body>
-    <a-scene 
-        vr-mode-ui="enabled: true; enterVRButton: #enterVRButton; enterARButton: #enterARButton" 
-        embedded
-        physics="driver: ammo; debug: false; debugDrawMode: 1"
-        background="color: #87CEEB">
+    <div id="container">
+        <div id="info" class="card">
+            <div class="card__body">
+                <h3>VR Object Creator</h3>
+                <p>Put on your Meta Quest 2 headset and click "Enter VR" to start creating!</p>
+                <div class="status-indicators">
+                    <div id="xr-status" class="status status--info">XR Ready: Checking...</div>
+                    <div id="object-count" class="status status--success">Objects: 0</div>
+                    <div id="input-method" class="status status--warning">Input: None</div>
+                </div>
+            </div>
+        </div>
         
-        <!-- Assets -->
-        <a-assets>
-            <!-- Materials -->
-            <a-mixin id="grabbable" 
-                     geometry="primitive: box" 
-                     material="color: #4CC3D9" 
-                     dynamic-body="shape: box; mass: 1"
-                     super-hands="colliderEvent: raycaster-intersection; colliderEventProperty: els; colliderEndEvent: raycaster-intersection-cleared; colliderEndEventProperty: clearedEls"
-                     grabbable="startButtons: triggerdown; endButtons: triggerup"
-                     stretchable="startButtons: gripdown; endButtons: gripup"
-                     draggable="startButtons: triggerdown; endButtons: triggerup">
-            </a-mixin>
-            
-            <a-mixin id="sphere-grabbable" 
-                     geometry="primitive: sphere" 
-                     material="color: #EF2D5E" 
-                     dynamic-body="shape: sphere; mass: 1"
-                     super-hands="colliderEvent: raycaster-intersection; colliderEventProperty: els; colliderEndEvent: raycaster-intersection-cleared; colliderEndEventProperty: clearedEls"
-                     grabbable="startButtons: triggerdown; endButtons: triggerup"
-                     stretchable="startButtons: gripdown; endButtons: gripup"
-                     draggable="startButtons: triggerdown; endButtons: triggerup">
-            </a-mixin>
-            
-            <a-mixin id="cylinder-grabbable" 
-                     geometry="primitive: cylinder" 
-                     material="color: #FFC65D" 
-                     dynamic-body="shape: cylinder; mass: 1"
-                     super-hands="colliderEvent: raycaster-intersection; colliderEventProperty: els; colliderEndEvent: raycaster-intersection-cleared; colliderEndEventProperty: clearedEls"
-                     grabbable="startButtons: triggerdown; endButtons: triggerup"
-                     stretchable="startButtons: gripdown; endButtons: gripup"
-                     draggable="startButtons: triggerdown; endButtons: triggerup">
-            </a-mixin>
-        </a-assets>
-
-        <!-- Lighting -->
-        <a-light type="ambient" color="#404040"></a-light>
-        <a-light type="directional" position="2 4 2" color="#FFFFFF" intensity="0.6"></a-light>
-        <a-light type="point" position="0 3 0" color="#FFFFFF" intensity="0.4"></a-light>
-
-        <!-- Room Structure -->
-        <!-- Floor -->
-        <a-plane 
-            position="0 0 0" 
-            rotation="-90 0 0" 
-            width="10" 
-            height="10" 
-            color="#7BC8A4" 
-            static-body="shape: box">
-        </a-plane>
-
-        <!-- Walls -->
-        <a-plane 
-            position="0 2 -5" 
-            width="10" 
-            height="4" 
-            color="#CCCCCC" 
-            static-body="shape: box">
-        </a-plane>
-        <a-plane 
-            position="0 2 5" 
-            rotation="0 180 0" 
-            width="10" 
-            height="4" 
-            color="#CCCCCC" 
-            static-body="shape: box">
-        </a-plane>
-        <a-plane 
-            position="-5 2 0" 
-            rotation="0 90 0" 
-            width="10" 
-            height="4" 
-            color="#CCCCCC" 
-            static-body="shape: box">
-        </a-plane>
-        <a-plane 
-            position="5 2 0" 
-            rotation="0 -90 0" 
-            width="10" 
-            height="4" 
-            color="#CCCCCC" 
-            static-body="shape: box">
-        </a-plane>
-
-        <!-- Ceiling -->
-        <a-plane 
-            position="0 4 0" 
-            rotation="90 0 0" 
-            width="10" 
-            height="10" 
-            color="#FFFFFF" 
-            static-body="shape: box">
-        </a-plane>
-
-        <!-- Central Platform -->
-        <a-box 
-            position="0 0.1 0" 
-            width="4" 
-            height="0.2" 
-            depth="4" 
-            color="#8B4513" 
-            static-body="shape: box">
-        </a-box>
-
-        <!-- Tables -->
-        <a-box 
-            id="table1"
-            position="2 1 -2" 
-            width="2" 
-            height="0.1" 
-            depth="1" 
-            color="#DEB887" 
-            static-body="shape: box">
-        </a-box>
-        <a-box 
-            id="table2"
-            position="-2 1 2" 
-            width="1.5" 
-            height="0.1" 
-            depth="1.5" 
-            color="#DEB887" 
-            static-body="shape: box">
-        </a-box>
-        <a-box 
-            id="table3"
-            position="3 1 3" 
-            width="1" 
-            height="0.1" 
-            depth="2" 
-            color="#DEB887" 
-            static-body="shape: box">
-        </a-box>
-
-        <!-- Table Legs -->
-        <a-cylinder position="1.5 0.5 -2.3" radius="0.05" height="1" color="#8B4513" static-body></a-cylinder>
-        <a-cylinder position="2.5 0.5 -2.3" radius="0.05" height="1" color="#8B4513" static-body></a-cylinder>
-        <a-cylinder position="1.5 0.5 -1.7" radius="0.05" height="1" color="#8B4513" static-body></a-cylinder>
-        <a-cylinder position="2.5 0.5 -1.7" radius="0.05" height="1" color="#8B4513" static-body></a-cylinder>
-
-        <a-cylinder position="-2.6 0.5 1.4" radius="0.05" height="1" color="#8B4513" static-body></a-cylinder>
-        <a-cylinder position="-1.4 0.5 1.4" radius="0.05" height="1" color="#8B4513" static-body></a-cylinder>
-        <a-cylinder position="-2.6 0.5 2.6" radius="0.05" height="1" color="#8B4513" static-body></a-cylinder>
-        <a-cylinder position="-1.4 0.5 2.6" radius="0.05" height="1" color="#8B4513" static-body></a-cylinder>
-
-        <a-cylinder position="2.8 0.5 2.2" radius="0.05" height="1" color="#8B4513" static-body></a-cylinder>
-        <a-cylinder position="3.2 0.5 2.2" radius="0.05" height="1" color="#8B4513" static-body></a-cylinder>
-        <a-cylinder position="2.8 0.5 3.8" radius="0.05" height="1" color="#8B4513" static-body></a-cylinder>
-        <a-cylinder position="3.2 0.5 3.8" radius="0.05" height="1" color="#8B4513" static-body></a-cylinder>
-
-        <!-- Interactive Objects -->
-        <a-box 
-            class="interactive-object"
-            position="2 1.5 -2" 
-            width="0.5" 
-            height="0.5" 
-            depth="0.5" 
-            color="#4CC3D9" 
-            mixin="grabbable"
-            geometry="primitive: box; width: 0.5; height: 0.5; depth: 0.5">
-        </a-box>
-
-        <a-sphere 
-            class="interactive-object"
-            position="-2 1.5 2" 
-            radius="0.3" 
-            color="#EF2D5E" 
-            mixin="sphere-grabbable"
-            geometry="primitive: sphere; radius: 0.3">
-        </a-sphere>
-
-        <a-cylinder 
-            class="interactive-object"
-            position="3 1.5 3" 
-            radius="0.2" 
-            height="0.8" 
-            color="#FFC65D" 
-            mixin="cylinder-grabbable"
-            geometry="primitive: cylinder; radius: 0.2; height: 0.8">
-        </a-cylinder>
-
-        <a-box 
-            class="interactive-object"
-            position="0 0.6 0" 
-            width="0.3" 
-            height="0.3" 
-            depth="0.3" 
-            color="#7BC8A4" 
-            mixin="grabbable"
-            geometry="primitive: box; width: 0.3; height: 0.3; depth: 0.3">
-        </a-box>
-
-        <a-sphere 
-            class="interactive-object"
-            position="1 1.2 -1" 
-            radius="0.25" 
-            color="#FF6B6B" 
-            mixin="sphere-grabbable"
-            geometry="primitive: sphere; radius: 0.25">
-        </a-sphere>
-
-        <!-- Spawning UI Panel -->
-        <a-entity 
-            id="ui-panel" 
-            position="2 1.6 1.5" 
-            rotation="0 -30 0">
-            <a-plane 
-                width="2" 
-                height="1.5" 
-                color="#333333" 
-                opacity="0.8">
-            </a-plane>
-            <a-text 
-                value="SPAWN OBJECTS" 
-                position="0 0.6 0.01" 
-                align="center" 
-                color="#FFFFFF" 
-                width="8">
-            </a-text>
-            
-            <!-- Spawn Buttons -->
-            <a-box 
-                id="spawn-cube"
-                class="spawn-button clickable"
-                position="-0.6 0.2 0.01" 
-                width="0.3" 
-                height="0.2" 
-                depth="0.05" 
-                color="#4CC3D9" 
-                data-object-type="box"
-                cursor-listener>
-            </a-box>
-            <a-text 
-                value="CUBE" 
-                position="-0.6 0.05 0.02" 
-                align="center" 
-                color="#FFFFFF" 
-                width="4">
-            </a-text>
-
-            <a-sphere 
-                id="spawn-sphere"
-                class="spawn-button clickable"
-                position="-0.2 0.2 0.01" 
-                radius="0.1" 
-                color="#EF2D5E" 
-                data-object-type="sphere"
-                cursor-listener>
-            </a-sphere>
-            <a-text 
-                value="BALL" 
-                position="-0.2 0.05 0.02" 
-                align="center" 
-                color="#FFFFFF" 
-                width="4">
-            </a-text>
-
-            <a-cylinder 
-                id="spawn-cylinder"
-                class="spawn-button clickable"
-                position="0.2 0.2 0.01" 
-                radius="0.08" 
-                height="0.2" 
-                color="#FFC65D" 
-                data-object-type="cylinder"
-                cursor-listener>
-            </a-cylinder>
-            <a-text 
-                value="CYLINDER" 
-                position="0.2 0.05 0.02" 
-                align="center" 
-                color="#FFFFFF" 
-                width="3">
-            </a-text>
-
-            <a-dodecahedron 
-                id="spawn-dodeca"
-                class="spawn-button clickable"
-                position="0.6 0.2 0.01" 
-                radius="0.1" 
-                color="#90EE90" 
-                data-object-type="dodecahedron"
-                cursor-listener>
-            </a-dodecahedron>
-            <a-text 
-                value="DODECA" 
-                position="0.6 0.05 0.02" 
-                align="center" 
-                color="#FFFFFF" 
-                width="3">
-            </a-text>
-
-            <a-octahedron 
-                id="spawn-octa"
-                class="spawn-button clickable"
-                position="0 -0.2 0.01" 
-                radius="0.1" 
-                color="#FFB347" 
-                data-object-type="octahedron"
-                cursor-listener>
-            </a-octahedron>
-            <a-text 
-                value="OCTAHEDRON" 
-                position="0 -0.35 0.02" 
-                align="center" 
-                color="#FFFFFF" 
-                width="3">
-            </a-text>
-        </a-entity>
-
-        <!-- Delete Zone -->
-        <a-cylinder 
-            id="delete-zone"
-            position="4 1.1 4" 
-            radius="0.5" 
-            height="0.2" 
-            color="#FF4444" 
-            opacity="0.7" 
-            static-body>
-            <a-text 
-                value="DELETE\nZONE" 
-                position="0 0.2 0" 
-                align="center" 
-                color="#FFFFFF" 
-                width="8">
-            </a-text>
-        </a-cylinder>
-
-        <!-- VR Controllers and Camera -->
-        <a-entity 
-            id="cameraRig" 
-            movement-controls="fly: false; constrainToNavMesh: false" 
-            position="0 1.6 3">
-            
-            <a-camera 
-                id="head" 
-                camera="fov: 80; zoom: 1;"
-                position="0 0 0"
-                look-controls="pointerLockEnabled: true"
-                cursor="objects: .clickable; rayOrigin: mouse">
-            </a-camera>
-
-            <!-- Left Hand -->
-            <a-entity 
-                id="leftHand"
-                meta-touch-controls="hand: left; model: true"
-                hand-controls="hand: left; handModelStyle: lowPoly; color: #ffcccc"
-                super-hands="colliderEvent: raycaster-intersection; colliderEventProperty: els; colliderEndEvent: raycaster-intersection-cleared; colliderEndEventProperty: clearedEls"
-                raycaster="objects: .interactive-object, .spawn-button, .clickable; far: 3; interval: 0; showLine: true; lineColor: #4CC3D9; lineOpacity: 0.5">
-            </a-entity>
-
-            <!-- Right Hand -->
-            <a-entity 
-                id="rightHand"
-                meta-touch-controls="hand: right; model: true"
-                hand-controls="hand: right; handModelStyle: lowPoly; color: #ffcccc"
-                super-hands="colliderEvent: raycaster-intersection; colliderEventProperty: els; colliderEndEvent: raycaster-intersection-cleared; colliderEndEventProperty: clearedEls"
-                raycaster="objects: .interactive-object, .spawn-button, .clickable; far: 3; interval: 0; showLine: true; lineColor: #EF2D5E; lineOpacity: 0.5">
-            </a-entity>
-        </a-entity>
-
-        <!-- Teleportation -->
-        <a-cylinder 
-            id="navmesh" 
-            radius="4.5" 
-            height="0.1" 
-            position="0 0.05 0" 
-            color="#7BC8A4" 
-            visible="false" 
-            nav-mesh>
-        </a-cylinder>
-
-    </a-scene>
+        <div id="instructions" class="card">
+            <div class="card__body">
+                <h4>Instructions</h4>
+                <ul>
+                    <li><strong>Controllers:</strong> Point and trigger to interact</li>
+                    <li><strong>Hands:</strong> Point and pinch to grab objects</li>
+                    <li><strong>Menu:</strong> Point at buttons to spawn objects</li>
+                    <li><strong>Rotate:</strong> Grab object and twist controller/hand</li>
+                    <li><strong>Delete:</strong> Select delete mode and point at objects</li>
+                </ul>
+            </div>
+        </div>
+        
+        <div id="error-message" class="card hidden">
+            <div class="card__body">
+                <div class="status status--error">
+                    <span id="error-text">WebXR not supported</span>
+                </div>
+            </div>
+        </div>
+    </div>
     
-    <!-- Custom VR Enter Button -->
-    <button id="enterVRButton" class="enter-vr-btn">Enter VR</button>
-    <button id="enterARButton" class="enter-ar-btn" style="display: none;">Enter AR</button>
-    
+    <div id="vr-overlay" class="hidden">
+        <div class="vr-ui">
+            <div class="vr-status">
+                <span id="vr-object-count">Objects: 0</span>
+                <span id="vr-mode">Mode: Create</span>
+            </div>
+        </div>
+    </div>
+
     <script src="app.js"></script>
 </body>
 </html>
