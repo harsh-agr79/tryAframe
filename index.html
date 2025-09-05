@@ -2,334 +2,89 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <title>VR Interactive Workshop - Advanced Meta Quest 2</title>
-    <meta name="description" content="Advanced VR workshop with hand tracking, comprehensive menus, and rotation controls">
-    
-    <!-- A-Frame and Components -->
+    <title>VR Object Showcase</title>
+    <meta name="description" content="VR Interactive Workshop with Object Showcase">
     <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/donmccurdy/aframe-physics-system@v4.0.1/dist/aframe-physics-system.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/gh/wmurphyrd/aframe-super-hands-component@v3.0.3/dist/super-hands.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/gh/supermedium/aframe-extras@v6.1.1/dist/aframe-extras.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/gh/supermedium/aframe-environment-component@1.3.1/dist/aframe-environment-component.min.js"></script>
-    
-    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/gh/supermedium/super-hands@3.0.3/dist/super-hands.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/wmurphyrd/aframe-super-hot-html-loader@1.0.0/dist/aframe-super-hot-html-loader.js"></script>
+    <style>
+        /* Include the CSS from my previous response here */
+    </style>
 </head>
 <body>
+    <button id="enterVRButton" style="position: fixed; top: 10px; left: 10px; z-index: 1000; padding: 12px 24px; font-size: 16px; background: #4CC3D9; color: white; border: none; border-radius: 8px; cursor: pointer;">
+        Enter VR
+    </button>
+
     <a-scene 
-        vr-mode-ui="enabled: true; enterVRButton: #enterVRButton"
-        embedded
-        physics="driver: ammo; debug: false; debugDrawMode: 1"
-        background="color: #87CEEB"
-        hand-tracking-extras="true">
+        background="color: #000011"
+        physics="driver: ammo; debugDrawMode: 0"
+        super-hands
+        vr-mode-ui="enabled: true"
+        loading-screen="dotsColor: white; backgroundColor: #000011">
         
-        <!-- Assets -->
         <a-assets>
-            <!-- Hand models -->
-            <a-asset-item id="leftHandModel" src="https://cdn.aframe.io/controllers/hands/leftHand.glb"></a-asset-item>
-            <a-asset-item id="rightHandModel" src="https://cdn.aframe.io/controllers/hands/rightHand.glb"></a-asset-item>
-            
-            <!-- Mixins for different shapes -->
-            <a-mixin id="interactive-base"
-                     super-hands="colliderEvent: raycaster-intersection; colliderEventProperty: els; colliderEndEvent: raycaster-intersection-cleared; colliderEndEventProperty: clearedEls"
-                     grabbable="startButtons: triggerdown; endButtons: triggerup"
-                     stretchable="startButtons: gripdown; endButtons: gripup"
-                     draggable="startButtons: triggerdown; endButtons: triggerup">
+            <a-mixin id="controller-style" 
+                geometry="primitive: sphere; radius: 0.02" 
+                material="color: #4CC3D9; metalness: 0.8; roughness: 0.2">
             </a-mixin>
         </a-assets>
 
-        <!-- Lighting System -->
-        <a-light type="ambient" color="#404040" intensity="0.4"></a-light>
-        <a-light type="directional" position="5 10 5" color="#FFFFFF" intensity="0.6"></a-light>
-        <a-light type="point" position="0 3 0" color="#FFFFFF" intensity="0.3"></a-light>
-        <a-light type="point" position="-3 2 -3" color="#FFC65D" intensity="0.2"></a-light>
+        <!-- Camera Rig -->
+        <a-entity id="cameraRig" position="0 1.6 3">
+            <a-camera 
+                id="camera"
+                look-controls="pointerLockEnabled: true"
+                wasd-controls="acceleration: 20">
+                <a-cursor 
+                    color="#4CC3D9"
+                    raycaster="objects: .clickable"
+                    animation__click="property: scale; startEvents: click; from: 0.1 0.1 0.1; to: 1 1 1; dur: 150"
+                    animation__fuse="property: scale; startEvents: fusing; from: 1 1 1; to: 1.5 1.5 1.5; dur: 1500"
+                    geometry="primitive: ring; radiusInner: 0.02; radiusOuter: 0.03"
+                    material="color: #4CC3D9; shader: flat">
+                </a-cursor>
+            </a-camera>
 
-        <!-- Room Environment -->
-        <!-- Floor -->
+            <!-- Left Controller -->
+            <a-entity 
+                id="leftController"
+                oculus-touch-controls="hand: left"
+                vive-controls="hand: left"
+                super-hands="colliderEvent: raycaster-intersection; colliderEventProperty: els; colliderEndEvent: raycaster-intersection-cleared; colliderEndEventProperty: clearedEls">
+                <a-entity mixin="controller-style"></a-entity>
+            </a-entity>
+
+            <!-- Right Controller -->
+            <a-entity 
+                id="rightController"
+                oculus-touch-controls="hand: right"
+                vive-controls="hand: right"
+                super-hands="colliderEvent: raycaster-intersection; colliderEventProperty: els; colliderEndEvent: raycaster-intersection-cleared; colliderEndEventProperty: clearedEls">
+                <a-entity mixin="controller-style"></a-entity>
+            </a-entity>
+        </a-entity>
+
+        <!-- Environment -->
         <a-plane 
             position="0 0 0" 
             rotation="-90 0 0" 
-            width="12" 
-            height="12" 
-            color="#7BC8A4" 
-            material="roughness: 0.8"
-            static-body="shape: box">
+            width="20" 
+            height="20" 
+            color="#1A1A1A"
+            static-body
+            material="roughness: 0.8">
         </a-plane>
 
-        <!-- Walls -->
-        <a-plane position="0 2 -6" width="12" height="4" color="#CCCCCC" material="roughness: 0.9" static-body="shape: box"></a-plane>
-        <a-plane position="0 2 6" rotation="0 180 0" width="12" height="4" color="#CCCCCC" material="roughness: 0.9" static-body="shape: box"></a-plane>
-        <a-plane position="-6 2 0" rotation="0 90 0" width="12" height="4" color="#CCCCCC" material="roughness: 0.9" static-body="shape: box"></a-plane>
-        <a-plane position="6 2 0" rotation="0 -90 0" width="12" height="4" color="#CCCCCC" material="roughness: 0.9" static-body="shape: box"></a-plane>
+        <!-- Lighting -->
+        <a-light type="ambient" intensity="0.5"></a-light>
+        <a-light type="directional" position="0 5 5" intensity="0.8"></a-light>
 
-        <!-- Ceiling -->
-        <a-plane position="0 4 0" rotation="90 0 0" width="12" height="12" color="#FFFFFF" material="roughness: 0.9" static-body="shape: box"></a-plane>
-
-        <!-- Central Platform with Grid -->
-        <a-box 
-            position="0 0.1 0" 
-            width="4" 
-            height="0.2" 
-            depth="4" 
-            color="#8B4513" 
-            material="roughness: 0.8"
-            static-body="shape: box">
-        </a-box>
-
-        <!-- Workspace Tables -->
-        <a-box position="3 1 -3" width="2" height="0.1" depth="1.5" color="#DEB887" material="roughness: 0.7" static-body="shape: box"></a-box>
-        <a-box position="-3 1 3" width="1.5" height="0.1" depth="2" color="#DEB887" material="roughness: 0.7" static-body="shape: box"></a-box>
-        <a-box position="4 1.5 4" width="1" height="0.1" depth="1" color="#DEB887" material="roughness: 0.7" static-body="shape: box"></a-box>
-
-        <!-- Table Legs -->
-        <a-cylinder position="2.2 0.5 -3.6" radius="0.05" height="1" color="#8B4513" static-body></a-cylinder>
-        <a-cylinder position="3.8 0.5 -3.6" radius="0.05" height="1" color="#8B4513" static-body></a-cylinder>
-        <a-cylinder position="2.2 0.5 -2.4" radius="0.05" height="1" color="#8B4513" static-body></a-cylinder>
-        <a-cylinder position="3.8 0.5 -2.4" radius="0.05" height="1" color="#8B4513" static-body></a-cylinder>
-
-        <!-- VR Menu Panel (Initially Hidden) -->
-        <a-entity 
-            id="vr-menu" 
-            position="-2 2.5 -1" 
-            rotation="0 15 0"
-            visible="false"
-            class="vr-menu">
-            
-            <!-- Menu Background -->
-            <a-plane 
-                width="3" 
-                height="2.5" 
-                color="#2A2A2A" 
-                opacity="0.9" 
-                material="side: double">
-            </a-plane>
-            
-            <!-- Menu Title -->
-            <a-text 
-                value="SHAPE CREATOR" 
-                position="0 1.1 0.01" 
-                align="center" 
-                color="#FFFFFF" 
-                width="8">
-            </a-text>
-            
-            <!-- Shape Buttons Grid (5 rows x 3 columns) -->
-            <!-- Row 1: Basic Shapes -->
-            <a-entity class="menu-button" position="-0.8 0.7 0.02" data-shape="box" cursor-listener>
-                <a-box width="0.2" height="0.2" depth="0.2" color="#4CC3D9"></a-box>
-                <a-text value="Cube" position="0 -0.25 0" align="center" color="#FFFFFF" width="6"></a-text>
-            </a-entity>
-            
-            <a-entity class="menu-button" position="0 0.7 0.02" data-shape="sphere" cursor-listener>
-                <a-sphere radius="0.1" color="#EF2D5E"></a-sphere>
-                <a-text value="Sphere" position="0 -0.25 0" align="center" color="#FFFFFF" width="6"></a-text>
-            </a-entity>
-            
-            <a-entity class="menu-button" position="0.8 0.7 0.02" data-shape="cylinder" cursor-listener>
-                <a-cylinder radius="0.08" height="0.2" color="#FFC65D"></a-cylinder>
-                <a-text value="Cylinder" position="0 -0.25 0" align="center" color="#FFFFFF" width="5"></a-text>
-            </a-entity>
-
-            <!-- Row 2: More Shapes -->
-            <a-entity class="menu-button" position="-0.8 0.3 0.02" data-shape="cone" cursor-listener>
-                <a-cone radius-bottom="0.1" radius-top="0" height="0.2" color="#90EE90"></a-cone>
-                <a-text value="Cone" position="0 -0.25 0" align="center" color="#FFFFFF" width="6"></a-text>
-            </a-entity>
-            
-            <a-entity class="menu-button" position="0 0.3 0.02" data-shape="torus" cursor-listener>
-                <a-torus radius="0.08" radius-tubular="0.03" color="#E0E0E0"></a-torus>
-                <a-text value="Torus" position="0 -0.25 0" align="center" color="#FFFFFF" width="6"></a-text>
-            </a-entity>
-            
-            <a-entity class="menu-button" position="0.8 0.3 0.02" data-shape="plane" cursor-listener>
-                <a-plane width="0.2" height="0.2" color="#DDA0DD"></a-plane>
-                <a-text value="Plane" position="0 -0.25 0" align="center" color="#FFFFFF" width="6"></a-text>
-            </a-entity>
-
-            <!-- Row 3: Platonic Solids -->
-            <a-entity class="menu-button" position="-0.8 -0.1 0.02" data-shape="tetrahedron" cursor-listener>
-                <a-tetrahedron radius="0.1" color="#FFB347"></a-tetrahedron>
-                <a-text value="Tetra" position="0 -0.25 0" align="center" color="#FFFFFF" width="6"></a-text>
-            </a-entity>
-            
-            <a-entity class="menu-button" position="0 -0.1 0.02" data-shape="octahedron" cursor-listener>
-                <a-octahedron radius="0.1" color="#F0E68C"></a-octahedron>
-                <a-text value="Octa" position="0 -0.25 0" align="center" color="#FFFFFF" width="6"></a-text>
-            </a-entity>
-            
-            <a-entity class="menu-button" position="0.8 -0.1 0.02" data-shape="icosahedron" cursor-listener>
-                <a-icosahedron radius="0.1" color="#98FB98"></a-icosahedron>
-                <a-text value="Icosa" position="0 -0.25 0" align="center" color="#FFFFFF" width="6"></a-text>
-            </a-entity>
-
-            <!-- Row 4: Complex Shapes -->
-            <a-entity class="menu-button" position="-0.8 -0.5 0.02" data-shape="dodecahedron" cursor-listener>
-                <a-dodecahedron radius="0.1" color="#FFE4B5"></a-dodecahedron>
-                <a-text value="Dodeca" position="0 -0.25 0" align="center" color="#FFFFFF" width="5"></a-text>
-            </a-entity>
-            
-            <a-entity class="menu-button" position="0 -0.5 0.02" data-shape="ring" cursor-listener>
-                <a-ring radius-inner="0.06" radius-outer="0.12" color="#F5DEB3"></a-ring>
-                <a-text value="Ring" position="0 -0.25 0" align="center" color="#FFFFFF" width="6"></a-text>
-            </a-entity>
-            
-            <a-entity class="menu-button" position="0.8 -0.5 0.02" data-shape="capsule" cursor-listener>
-                <a-capsule radius="0.05" length="0.2" color="#FF6347"></a-capsule>
-                <a-text value="Capsule" position="0 -0.25 0" align="center" color="#FFFFFF" width="5"></a-text>
-            </a-entity>
-
-            <!-- Row 5: Special Shapes and Controls -->
-            <a-entity class="menu-button" position="-0.8 -0.9 0.02" data-shape="triangle" cursor-listener>
-                <a-triangle vertex-a="0 0.1 0" vertex-b="-0.09 -0.1 0" vertex-c="0.09 -0.1 0" color="#40E0D0"></a-triangle>
-                <a-text value="Triangle" position="0 -0.25 0" align="center" color="#FFFFFF" width="5"></a-text>
-            </a-entity>
-
-            <!-- Control Buttons -->
-            <a-entity class="menu-button control-button" position="0 -0.9 0.02" data-action="rotation-toggle" cursor-listener>
-                <a-cylinder radius="0.08" height="0.05" color="#DA70D6"></a-cylinder>
-                <a-text value="Rotation" position="0 -0.25 0" align="center" color="#FFFFFF" width="5"></a-text>
-            </a-entity>
-            
-            <a-entity class="menu-button control-button" position="0.8 -0.9 0.02" data-action="delete-mode" cursor-listener>
-                <a-box width="0.15" height="0.15" depth="0.15" color="#FF4444"></a-box>
-                <a-text value="Delete" position="0 -0.25 0" align="center" color="#FFFFFF" width="5"></a-text>
-            </a-entity>
-        </a-entity>
-
-        <!-- Delete Zone -->
-        <a-cylinder 
-            id="delete-zone"
-            position="5 1.1 5" 
-            radius="0.6" 
-            height="0.2" 
-            color="#FF4444" 
-            opacity="0.7" 
-            static-body>
-            <a-text 
-                value="DELETE ZONE" 
-                position="0 0.3 0" 
-                align="center" 
-                color="#FFFFFF" 
-                width="10">
-            </a-text>
-            <a-animation 
-                attribute="rotation" 
-                to="0 360 0" 
-                dur="5000" 
-                repeat="indefinite">
-            </a-animation>
-        </a-cylinder>
-
-        <!-- Initial Objects -->
-        <a-box 
-            class="interactive-object"
-            position="3 1.6 -3" 
-            width="0.4" 
-            height="0.4" 
-            depth="0.4" 
-            color="#4CC3D9" 
-            mixin="interactive-base"
-            dynamic-body="shape: box; mass: 1">
-        </a-box>
-
-        <a-sphere 
-            class="interactive-object"
-            position="-3 1.6 3" 
-            radius="0.25" 
-            color="#EF2D5E" 
-            mixin="interactive-base"
-            dynamic-body="shape: sphere; mass: 1">
-        </a-sphere>
-
-        <!-- VR Controllers and Hand Tracking -->
-        <a-entity 
-            id="cameraRig" 
-            movement-controls="fly: false; constrainToNavMesh: false" 
-            position="0 1.6 4">
-            
-            <a-camera 
-                id="head" 
-                camera="fov: 80; zoom: 1;"
-                position="0 0 0"
-                look-controls="pointerLockEnabled: true"
-                cursor="objects: .menu-button, .interactive-object, .control-button; rayOrigin: mouse">
-            </a-camera>
-
-            <!-- Left Controller with Hand Tracking Fallback -->
-            <a-entity 
-                id="leftController"
-                oculus-touch-controls="hand: left; model: true"
-                hand-controls="hand: left; handModelStyle: lowPoly; color: #ffcccc"
-                super-hands="colliderEvent: raycaster-intersection; colliderEventProperty: els; colliderEndEvent: raycaster-intersection-cleared; colliderEndEventProperty: clearedEls"
-                raycaster="objects: .interactive-object, .menu-button, .control-button; far: 5; interval: 0; showLine: true; lineColor: #4CC3D9; lineOpacity: 0.5"
-                hand-tracking-controls="hand: left">
-            </a-entity>
-
-            <!-- Right Controller with Hand Tracking Fallback -->
-            <a-entity 
-                id="rightController"
-                oculus-touch-controls="hand: right; model: true"
-                hand-controls="hand: right; handModelStyle: lowPoly; color: #ffcccc"
-                super-hands="colliderEvent: raycaster-intersection; colliderEventProperty: els; colliderEndEvent: raycaster-intersection-cleared; colliderEndEventProperty: clearedEls"
-                raycaster="objects: .interactive-object, .menu-button, .control-button; far: 5; interval: 0; showLine: true; lineColor: #EF2D5E; lineOpacity: 0.5"
-                hand-tracking-controls="hand: right">
-            </a-entity>
-
-            <!-- Hand Models (visible when controllers not present) -->
-            <a-entity 
-                id="leftHandModel"
-                gltf-model="#leftHandModel"
-                position="0 0 0"
-                visible="false"
-                hand-tracking-controls="hand: left"
-                super-hands="colliderEvent: raycaster-intersection; colliderEventProperty: els; colliderEndEvent: raycaster-intersection-cleared; colliderEndEventProperty: clearedEls">
-            </a-entity>
-
-            <a-entity 
-                id="rightHandModel"
-                gltf-model="#rightHandModel"
-                position="0 0 0"
-                visible="false"
-                hand-tracking-controls="hand: right"
-                super-hands="colliderEvent: raycaster-intersection; colliderEventProperty: els; colliderEndEvent: raycaster-intersection-cleared; colliderEndEventProperty: clearedEls">
-            </a-entity>
-        </a-entity>
-
-        <!-- Navigation Mesh -->
-        <a-cylinder 
-            id="navmesh" 
-            radius="5.5" 
-            height="0.1" 
-            position="0 0.05 0" 
-            color="#7BC8A4" 
-            visible="false" 
-            nav-mesh>
-        </a-cylinder>
-
-        <!-- Rotation Indicator (Hidden by default) -->
-        <a-entity 
-            id="rotation-indicator"
-            visible="false">
-            <a-ring 
-                radius-inner="0.8" 
-                radius-outer="1" 
-                color="#FFD700" 
-                opacity="0.6"
-                rotation="90 0 0">
-            </a-ring>
-            <a-text 
-                value="ROTATION MODE" 
-                position="0 0.1 0" 
-                align="center" 
-                color="#FFD700" 
-                width="8">
-            </a-text>
-        </a-entity>
-
+        <!-- Object Showcase will be created dynamically -->
+        
     </a-scene>
-    
-    <!-- UI Elements -->
-    <button id="enterVRButton" class="enter-vr-btn">Enter VR</button>
-    
-    <script src="app.js"></script>
+
+    <script src="your-vr-workshop-script.js"></script>
 </body>
 </html>
