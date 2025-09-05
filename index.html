@@ -2,89 +2,324 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <title>VR Object Showcase</title>
-    <meta name="description" content="VR Interactive Workshop with Object Showcase">
+    <title>VR Interactive Object Room</title>
+    <meta name="description" content="VR Interactive Object Room with Meta Quest 2 Support">
     <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/donmccurdy/aframe-physics-system@v4.0.1/dist/aframe-physics-system.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/gh/supermedium/super-hands@3.0.3/dist/super-hands.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/gh/wmurphyrd/aframe-super-hot-html-loader@1.0.0/dist/aframe-super-hot-html-loader.js"></script>
-    <style>
-        /* Include the CSS from my previous response here */
-    </style>
+    <script src="https://cdn.jsdelivr.net/gh/wmurphyrd/aframe-super-hands-component@v3.0.3/dist/super-hands.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/AdaRoseCannon/aframe-xr-boilerplate@latest/build/aframe-xr-boilerplate.js"></script>
 </head>
 <body>
-    <button id="enterVRButton" style="position: fixed; top: 10px; left: 10px; z-index: 1000; padding: 12px 24px; font-size: 16px; background: #4CC3D9; color: white; border: none; border-radius: 8px; cursor: pointer;">
-        Enter VR
-    </button>
-
     <a-scene 
-        background="color: #000011"
-        physics="driver: ammo; debugDrawMode: 0"
-        super-hands
+        background="color: #212121" 
+        physics="debug: false; gravity: -9.8"
         vr-mode-ui="enabled: true"
-        loading-screen="dotsColor: white; backgroundColor: #000011">
+        webxr="requiredFeatures: hit-test,local-floor;">
         
         <a-assets>
-            <a-mixin id="controller-style" 
-                geometry="primitive: sphere; radius: 0.02" 
-                material="color: #4CC3D9; metalness: 0.8; roughness: 0.2">
-            </a-mixin>
+            <!-- Sounds -->
+            <audio id="spawn-sound" preload="auto" src="data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmEaBjqV2+/AciMFLoPO8teJOQgYZ7zs559NEAxPqOPwtmMcBjiR1/LNeSsFJHfH8N2QQAoUXrTp66hVFApGn+DyvmEaBjqV2+/AciMFLoPO8teJOQgYZ7zs559NEAxPqOPwtmMcBjiR1/LNeSsFJHfH8N2QQAoUXrTp66hVFApGn+DyvmEaBjqV2+/AciMFLoPO8teJOQgYZ7zs559NEAxPqOPwtmMcBjiR1/LNeSsFJHfH8N2QQAoUXrTp66hVFApGn+DyvmEaBjqV2+/AciMFLoPO8teJOQgYZ7zs559NEAxPqOPwtmMcBjiR1/LNeSsFJHfH8N2QQAoUXrTp66hVFApGn+DyvmEaBjqV2+/AciMFLoPO8teJOQgYZ7zs559NEAxPqOPwtmMcBjiR1/LNeSsFJHfH8N2QQAoUXrTp66hVFApGn+DyvmEaBjqV2+/AciMFLoPO8teJOQgYZ7zs559NEAxPqOPwtmMcBjiR1/LNeSsFJHfH8N2QQAoUXrTp66hVFApGn+DyvmEaBjqV2+/AciMF"></audio>
+            <audio id="grab-sound" preload="auto" src="data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmEaBjqV2+/AciMFLoPO8teJOQgYZ7zs559NEAxPqOPwtmMcBjiR1/LNeSsFJHfH8N2QQAoUXrTp66hVFApGn+DyvmEaBjqV2+/AciMF"></audio>
         </a-assets>
 
-        <!-- Camera Rig -->
-        <a-entity id="cameraRig" position="0 1.6 3">
-            <a-camera 
-                id="camera"
-                look-controls="pointerLockEnabled: true"
-                wasd-controls="acceleration: 20">
-                <a-cursor 
-                    color="#4CC3D9"
-                    raycaster="objects: .clickable"
-                    animation__click="property: scale; startEvents: click; from: 0.1 0.1 0.1; to: 1 1 1; dur: 150"
-                    animation__fuse="property: scale; startEvents: fusing; from: 1 1 1; to: 1.5 1.5 1.5; dur: 1500"
-                    geometry="primitive: ring; radiusInner: 0.02; radiusOuter: 0.03"
-                    material="color: #4CC3D9; shader: flat">
-                </a-cursor>
-            </a-camera>
+        <!-- Lighting -->
+        <a-light type="ambient" intensity="0.4"></a-light>
+        <a-light type="directional" position="0 10 0" rotation="-90 0 0" intensity="0.6" castShadow="true"></a-light>
 
-            <!-- Left Controller -->
-            <a-entity 
-                id="leftController"
-                oculus-touch-controls="hand: left"
-                vive-controls="hand: left"
-                super-hands="colliderEvent: raycaster-intersection; colliderEventProperty: els; colliderEndEvent: raycaster-intersection-cleared; colliderEndEventProperty: clearedEls">
-                <a-entity mixin="controller-style"></a-entity>
-            </a-entity>
-
-            <!-- Right Controller -->
-            <a-entity 
-                id="rightController"
-                oculus-touch-controls="hand: right"
-                vive-controls="hand: right"
-                super-hands="colliderEvent: raycaster-intersection; colliderEventProperty: els; colliderEndEvent: raycaster-intersection-cleared; colliderEndEventProperty: clearedEls">
-                <a-entity mixin="controller-style"></a-entity>
-            </a-entity>
-        </a-entity>
-
-        <!-- Environment -->
+        <!-- Room Structure -->
+        <!-- Floor -->
         <a-plane 
             position="0 0 0" 
             rotation="-90 0 0" 
-            width="20" 
-            height="20" 
-            color="#1A1A1A"
+            width="10" 
+            height="10" 
+            color="#8B4513" 
             static-body
             material="roughness: 0.8">
         </a-plane>
 
-        <!-- Lighting -->
-        <a-light type="ambient" intensity="0.5"></a-light>
-        <a-light type="directional" position="0 5 5" intensity="0.8"></a-light>
-
-        <!-- Object Showcase will be created dynamically -->
+        <!-- Walls -->
+        <a-plane 
+            position="0 4 -5" 
+            rotation="0 0 0" 
+            width="10" 
+            height="8" 
+            color="#D2B48C" 
+            static-body>
+        </a-plane>
         
+        <a-plane 
+            position="0 4 5" 
+            rotation="0 180 0" 
+            width="10" 
+            height="8" 
+            color="#D2B48C" 
+            static-body>
+        </a-plane>
+        
+        <a-plane 
+            position="-5 4 0" 
+            rotation="0 90 0" 
+            width="10" 
+            height="8" 
+            color="#D2B48C" 
+            static-body>
+        </a-plane>
+        
+        <a-plane 
+            position="5 4 0" 
+            rotation="0 -90 0" 
+            width="10" 
+            height="8" 
+            color="#D2B48C" 
+            static-body>
+        </a-plane>
+
+        <!-- Ceiling -->
+        <a-plane 
+            position="0 8 0" 
+            rotation="90 0 0" 
+            width="10" 
+            height="10" 
+            color="#F5DEB3" 
+            static-body>
+        </a-plane>
+
+        <!-- Platform in center -->
+        <a-cylinder 
+            position="0 0.2 0" 
+            radius="2" 
+            height="0.4" 
+            color="#654321" 
+            static-body>
+        </a-cylinder>
+
+        <!-- Tables -->
+        <a-box 
+            position="3 1 3" 
+            width="2" 
+            height="2" 
+            depth="1" 
+            color="#8B4513" 
+            static-body>
+        </a-box>
+        
+        <a-cylinder 
+            position="-3 0.75 3" 
+            radius="0.8" 
+            height="1.5" 
+            color="#8B4513" 
+            static-body>
+        </a-cylinder>
+        
+        <a-box 
+            position="3 1 -3" 
+            width="1.5" 
+            height="2" 
+            depth="1.5" 
+            color="#8B4513" 
+            static-body>
+        </a-box>
+
+        <!-- 3D Menu System -->
+        <a-entity id="menu-panel" position="-3 2 -2" rotation="0 30 0">
+            <!-- Menu Background -->
+            <a-plane 
+                width="2.5" 
+                height="3" 
+                color="#2C3E50" 
+                opacity="0.9" 
+                material="transparent: true">
+            </a-plane>
+            
+            <!-- Title -->
+            <a-text 
+                value="Object Menu" 
+                position="0 1.2 0.01" 
+                align="center" 
+                color="#ECF0F1" 
+                width="8">
+            </a-text>
+
+            <!-- Spawn Buttons -->
+            <a-box 
+                id="spawn-box" 
+                position="-0.8 0.6 0.02" 
+                width="0.3" 
+                height="0.3" 
+                depth="0.1" 
+                color="#4CC3D9" 
+                class="menu-button"
+                hoverable
+                clickable>
+            </a-box>
+            <a-text 
+                value="Box" 
+                position="-0.8 0.3 0.02" 
+                align="center" 
+                color="#ECF0F1" 
+                width="6">
+            </a-text>
+
+            <a-sphere 
+                id="spawn-sphere" 
+                position="-0.8 -0.1 0.02" 
+                radius="0.15" 
+                color="#EF2D5E" 
+                class="menu-button"
+                hoverable
+                clickable>
+            </a-sphere>
+            <a-text 
+                value="Sphere" 
+                position="-0.8 -0.4 0.02" 
+                align="center" 
+                color="#ECF0F1" 
+                width="6">
+            </a-text>
+
+            <a-cylinder 
+                id="spawn-cylinder" 
+                position="0 0.6 0.02" 
+                radius="0.15" 
+                height="0.3" 
+                color="#FFC65D" 
+                class="menu-button"
+                hoverable
+                clickable>
+            </a-cylinder>
+            <a-text 
+                value="Cylinder" 
+                position="0 0.3 0.02" 
+                align="center" 
+                color="#ECF0F1" 
+                width="6">
+            </a-text>
+
+            <a-cone 
+                id="spawn-cone" 
+                position="0 -0.1 0.02" 
+                radius-bottom="0.15" 
+                height="0.3" 
+                color="#7BC8A4" 
+                class="menu-button"
+                hoverable
+                clickable>
+            </a-cone>
+            <a-text 
+                value="Cone" 
+                position="0 -0.4 0.02" 
+                align="center" 
+                color="#ECF0F1" 
+                width="6">
+            </a-text>
+
+            <a-torus 
+                id="spawn-torus" 
+                position="0.8 0.6 0.02" 
+                radius="0.12" 
+                radius-tubular="0.05" 
+                color="#93648D" 
+                class="menu-button"
+                hoverable
+                clickable>
+            </a-torus>
+            <a-text 
+                value="Torus" 
+                position="0.8 0.3 0.02" 
+                align="center" 
+                color="#ECF0F1" 
+                width="6">
+            </a-text>
+
+            <!-- Remove Mode Button -->
+            <a-box 
+                id="remove-mode" 
+                position="0.8 -0.1 0.02" 
+                width="0.3" 
+                height="0.3" 
+                depth="0.1" 
+                color="#E74C3C" 
+                class="menu-button"
+                hoverable
+                clickable>
+            </a-box>
+            <a-text 
+                value="Remove" 
+                position="0.8 -0.4 0.02" 
+                align="center" 
+                color="#ECF0F1" 
+                width="6">
+            </a-text>
+
+            <!-- Clear All Button -->
+            <a-box 
+                id="clear-all" 
+                position="0 -0.8 0.02" 
+                width="0.6" 
+                height="0.3" 
+                depth="0.1" 
+                color="#95A5A6" 
+                class="menu-button"
+                hoverable
+                clickable>
+            </a-box>
+            <a-text 
+                value="Clear All" 
+                position="0 -1.1 0.02" 
+                align="center" 
+                color="#ECF0F1" 
+                width="6">
+            </a-text>
+        </a-entity>
+
+        <!-- VR Controllers and Camera -->
+        <a-entity id="cameraRig" position="0 1.6 3" movement-controls="fly: false">
+            <a-entity 
+                id="head" 
+                camera 
+                position="0 0 0"
+                look-controls="pointerLockEnabled: true">
+            </a-entity>
+
+            <a-entity 
+                id="leftHand"
+                hand-controls="hand: left; handModelStyle: lowPoly; color: #ffcccc"
+                laser-controls="hand: left"
+                raycaster="objects: .menu-button, .interactable; far: 10; interval: 0; showLine: true; lineColor: #74BDF9; lineOpacity: 0.5"
+                line="color: #74BDF9; opacity: 0.5"
+                super-hands="colliderEvent: raycaster-intersection;
+                           colliderEventProperty: els;
+                           colliderEndEvent: raycaster-intersection-cleared;
+                           colliderEndEventProperty: clearedEls;">
+            </a-entity>
+
+            <a-entity 
+                id="rightHand"
+                hand-controls="hand: right; handModelStyle: lowPoly; color: #ffcccc"
+                laser-controls="hand: right"
+                raycaster="objects: .menu-button, .interactable; far: 10; interval: 0; showLine: true; lineColor: #74BDF9; lineOpacity: 0.5"
+                line="color: #74BDF9; opacity: 0.5"
+                super-hands="colliderEvent: raycaster-intersection;
+                           colliderEventProperty: els;
+                           colliderEndEvent: raycaster-intersection-cleared;
+                           colliderEndEventProperty: clearedEls;">
+            </a-entity>
+        </a-entity>
+
+        <!-- Spawn point indicator -->
+        <a-ring 
+            id="spawn-indicator" 
+            position="0 0.5 -1" 
+            radius-inner="0.1" 
+            radius-outer="0.15" 
+            color="#74BDF9" 
+            opacity="0.5" 
+            visible="false"
+            animation__rotation="property: rotation; to: 0 360 0; loop: true; dur: 2000">
+        </a-ring>
     </a-scene>
 
-    <script src="your-vr-workshop-script.js"></script>
+    <script src="app.js"></script>
 </body>
 </html>
