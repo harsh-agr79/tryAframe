@@ -3,58 +3,176 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VR Object Creator - Meta Quest 2</title>
+    <title>VR Object Creator - Meta Quest 2 Compatible</title>
     <link rel="stylesheet" href="style.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/webxr/VRButton.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+    
+    <!-- Three.js r150+ for proper WebXR support -->
+    <script async src="https://unpkg.com/es-module-shims@1.6.3/dist/es-module-shims.js"></script>
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://unpkg.com/three@0.156.1/build/three.module.js",
+          "three/addons/": "https://unpkg.com/three@0.156.1/examples/jsm/"
+        }
+      }
+    </script>
+    
+    <!-- WebXR Polyfill for better compatibility -->
+    <script src="https://cdn.jsdelivr.net/npm/webxr-polyfill@latest/build/webxr-polyfill.min.js"></script>
 </head>
 <body>
     <div id="container">
+        <!-- Main Info Panel -->
         <div id="info" class="card">
             <div class="card__body">
                 <h3>VR Object Creator</h3>
-                <p>Put on your Meta Quest 2 headset and click "Enter VR" to start creating!</p>
+                <p id="main-description">Advanced VR/AR scene builder with Quest 2 support</p>
+                
                 <div class="status-indicators">
-                    <div id="xr-status" class="status status--info">XR Ready: Checking...</div>
+                    <div id="https-status" class="status status--info">
+                        <span class="loading"></span> HTTPS: Checking...
+                    </div>
+                    <div id="webxr-status" class="status status--info">
+                        <span class="loading"></span> WebXR: Checking...
+                    </div>
+                    <div id="vr-status" class="status status--info">
+                        <span class="loading"></span> VR Support: Checking...
+                    </div>
+                    <div id="input-method" class="status status--warning">Input: Desktop</div>
                     <div id="object-count" class="status status--success">Objects: 0</div>
-                    <div id="input-method" class="status status--warning">Input: None</div>
+                </div>
+                
+                <div id="compatibility-info" class="mt-8">
+                    <p><strong>Current Mode:</strong> <span id="current-mode">Desktop Fallback</span></p>
+                </div>
+
+                <!-- Desktop Creation Controls -->
+                <div id="desktop-creation" class="mt-8">
+                    <h4>Create Objects (Desktop Mode)</h4>
+                    <div class="creation-buttons">
+                        <button class="btn btn--sm create-btn" data-type="cube">📦 Cube</button>
+                        <button class="btn btn--sm create-btn" data-type="sphere">⚪ Sphere</button>
+                        <button class="btn btn--sm create-btn" data-type="cylinder">🗄️ Cylinder</button>
+                        <button class="btn btn--sm create-btn" data-type="cone">🔺 Cone</button>
+                        <button class="btn btn--sm create-btn" data-type="torus">🍩 Torus</button>
+                        <button class="btn btn--sm create-btn" data-type="tetrahedron">💎 Tetrahedron</button>
+                        <button id="toggle-delete" class="btn btn--sm btn--outline">🗑️ Delete Mode: OFF</button>
+                    </div>
                 </div>
             </div>
         </div>
         
+        <!-- Instructions Panel -->
         <div id="instructions" class="card">
             <div class="card__body">
-                <h4>Instructions</h4>
-                <ul>
-                    <li><strong>Controllers:</strong> Point and trigger to interact</li>
-                    <li><strong>Hands:</strong> Point and pinch to grab objects</li>
-                    <li><strong>Menu:</strong> Point at buttons to spawn objects</li>
-                    <li><strong>Rotate:</strong> Grab object and twist controller/hand</li>
-                    <li><strong>Delete:</strong> Select delete mode and point at objects</li>
-                </ul>
+                <h4>Controls</h4>
+                <div id="vr-instructions" class="hidden">
+                    <ul>
+                        <li><strong>Controllers:</strong> Point and trigger to interact</li>
+                        <li><strong>Hands:</strong> Point and pinch to grab objects</li>
+                        <li><strong>Menu:</strong> Point at buttons to spawn objects</li>
+                        <li><strong>Rotate:</strong> Grab object and twist controller/hand</li>
+                        <li><strong>Delete:</strong> Select delete mode and point at objects</li>
+                    </ul>
+                </div>
+                <div id="desktop-instructions">
+                    <ul>
+                        <li><strong>Mouse:</strong> Click objects to interact</li>
+                        <li><strong>Camera:</strong> Drag to orbit, scroll to zoom</li>
+                        <li><strong>Create:</strong> Use buttons above to spawn objects</li>
+                        <li><strong>WASD:</strong> Alternative camera movement</li>
+                        <li><strong>Delete:</strong> Toggle delete mode, then click objects</li>
+                    </ul>
+                </div>
             </div>
         </div>
         
-        <div id="error-message" class="card hidden">
+        <!-- Error/Warning Panel -->
+        <div id="error-panel" class="card error-card hidden">
             <div class="card__body">
-                <div class="status status--error">
-                    <span id="error-text">WebXR not supported</span>
+                <div class="error-header">
+                    <div class="status status--error">
+                        <strong>WebXR Issues Detected</strong>
+                    </div>
+                    <button id="close-error" class="close-btn">×</button>
                 </div>
+                <div id="error-list" class="mt-8">
+                    <!-- Dynamic error content -->
+                </div>
+            </div>
+        </div>
+        
+        <!-- Troubleshooting Panel -->
+        <div id="troubleshooting" class="card troubleshooting-card hidden">
+            <div class="card__body">
+                <div class="troubleshoot-header">
+                    <h4>🔧 Troubleshooting Guide</h4>
+                    <button id="close-troubleshoot" class="close-btn">×</button>
+                </div>
+                <div id="troubleshooting-content">
+                    <div class="troubleshoot-section">
+                        <h5>For Meta Quest 2:</h5>
+                        <ol>
+                            <li>Open Quest Browser or use Oculus Link</li>
+                            <li>Navigate to this page via HTTPS</li>
+                            <li>Allow VR permissions when prompted</li>
+                            <li>Look for "Enter VR" button</li>
+                        </ol>
+                    </div>
+                    
+                    <div class="troubleshoot-section">
+                        <h5>For Desktop Chrome:</h5>
+                        <ol>
+                            <li>Chrome 79+ required</li>
+                            <li>Enable WebXR flags: chrome://flags/#webxr-incubations</li>
+                            <li>Connect VR headset</li>
+                            <li>Use HTTPS (required for WebXR)</li>
+                        </ol>
+                    </div>
+                    
+                    <div class="troubleshoot-section">
+                        <h5>For Firefox:</h5>
+                        <ol>
+                            <li>Firefox 98+ recommended</li>
+                            <li>Enable dom.vr.webxr.enabled in about:config</li>
+                            <li>Restart browser after enabling</li>
+                        </ol>
+                    </div>
+                </div>
+                
+                <button id="retry-webxr" class="btn btn--primary mt-8">
+                    🔄 Retry WebXR Detection
+                </button>
             </div>
         </div>
     </div>
     
+    <!-- VR Overlay (shown when in VR) -->
     <div id="vr-overlay" class="hidden">
         <div class="vr-ui">
             <div class="vr-status">
+                <div class="vr-text">🥽 VR Mode Active</div>
                 <span id="vr-object-count">Objects: 0</span>
-                <span id="vr-mode">Mode: Create</span>
+                <span id="vr-mode-indicator">Mode: Create</span>
+                <div class="vr-hint">Look around and use controllers to interact</div>
             </div>
         </div>
     </div>
 
-    <script src="app.js"></script>
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="loading-overlay">
+        <div class="loading-content">
+            <div class="loading-spinner"></div>
+            <p>Initializing VR Application...</p>
+            <div id="loading-steps">
+                <div class="loading-step">✓ Loading Three.js</div>
+                <div class="loading-step" id="step-webxr">⏳ Checking WebXR support</div>
+                <div class="loading-step" id="step-scene">⏳ Creating 3D scene</div>
+                <div class="loading-step" id="step-vr">⏳ Setting up VR</div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="app.js"></script>
 </body>
 </html>

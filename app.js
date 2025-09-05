@@ -1,85 +1,295 @@
-// VR Object Creator Application
+import * as THREE from 'three';
+import { VRButton } from 'three/addons/webxr/VRButton.js';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+// Enhanced VR Object Creator with comprehensive WebXR support
 class VRObjectCreator {
     constructor() {
+        // Core Three.js components
         this.scene = null;
         this.camera = null;
         this.renderer = null;
+        this.controls = null;
+        
+        // VR components
         this.controllers = [];
         this.hands = [];
         this.raycasters = [];
+        
+        // Scene objects
         this.objects = [];
         this.menu = null;
-        this.selectedObject = null;
-        this.isDeleteMode = false;
-        this.objectCount = 0;
-        this.inputMethod = 'mouse';
-        
-        // Room and platform references
+        this.menuButtons = [];
         this.room = null;
         this.platform = null;
         this.tables = [];
         
         // Interaction state
+        this.selectedObject = null;
         this.grabbedObject = null;
         this.grabbedController = null;
-        this.grabOffset = new THREE.Vector3();
-        this.grabRotationOffset = new THREE.Quaternion();
+        this.isDeleteMode = false;
+        this.objectCount = 0;
         
-        // Mouse interaction
+        // Input handling
         this.mouse = new THREE.Vector2();
         this.mouseRaycaster = new THREE.Raycaster();
-        this.controls = null;
+        this.inputMethod = 'desktop';
+        
+        // WebXR compatibility
+        this.webXRSupported = false;
+        this.vrSessionAvailable = false;
+        this.httpsRequired = !this.isHTTPS();
+        this.compatibilityIssues = [];
+        
+        // Grab interaction
+        this.grabOffset = new THREE.Vector3();
+        this.grabRotationOffset = new THREE.Quaternion();
         
         this.init();
     }
 
-    init() {
-        this.createScene();
-        this.createRoom();
-        this.createPlatform();
-        this.createTables();
-        this.createMenu();
-        this.setupVR();
-        this.setupLights();
-        this.setupEventListeners();
-        this.animate();
-        this.updateUI();
+    async init() {
+        try {
+            this.showLoadingStep('step-webxr', '⏳ Checking WebXR support');
+            
+            // Check compatibility first
+            await this.checkWebXRCompatibility();
+            this.updateCompatibilityUI();
+            
+            this.showLoadingStep('step-scene', '⏳ Creating 3D scene');
+            this.createScene();
+            this.createRoom();
+            this.createPlatform();
+            this.createTables();
+            this.createMenu();
+            this.setupLights();
+            
+            this.showLoadingStep('step-vr', '⏳ Setting up VR');
+            await this.setupVR();
+            
+            this.setupEventListeners();
+            this.animate();
+            this.updateUI();
+            
+            // Hide loading overlay
+            setTimeout(() => {
+                document.getElementById('loading-overlay').classList.add('hidden');
+            }, 1000);
+
+            console.log('VR Object Creator initialized successfully');
+            
+        } catch (error) {
+            console.error('Initialization failed:', error);
+            this.showLoadingError(error.message);
+        }
+    }
+
+    showLoadingError(message) {
+        const loadingOverlay = document.getElementById('loading-overlay');
+        if (loadingOverlay) {
+            loadingOverlay.innerHTML = `
+                <div class="loading-content">
+                    <div style="color: var(--color-error); font-size: var(--font-size-xl); margin-bottom: var(--space-16);">
+                        ❌ Application Failed to Load
+                    </div>
+                    <div style="font-size: var(--font-size-md); margin-bottom: var(--space-16);">
+                        ${message}
+                    </div>
+                    <button onclick="location.reload()" class="btn btn--primary">
+                        🔄 Reload Page
+                    </button>
+                </div>
+            `;
+        }
+    }
+
+    isHTTPS() {
+        return location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+    }
+
+    async checkWebXRCompatibility() {
+        const issues = [];
+        
+        // Check HTTPS
+        if (!this.isHTTPS()) {
+            issues.push({
+                type: 'https',
+                message: 'HTTPS required for WebXR',
+                solution: 'Access this page via HTTPS or localhost'
+            });
+        }
+        
+        // Check navigator.xr
+        if (!('xr' in navigator)) {
+            issues.push({
+                type: 'webxr-api',
+                message: 'WebXR not available in this browser',
+                solution: 'Use Chrome 79+, Firefox 98+, or Quest Browser'
+            });
+        } else {
+            this.webXRSupported = true;
+            
+            try {
+                // Check VR session support
+                const vrSupported = await navigator.xr.isSessionSupported('immersive-vr');
+                this.vrSessionAvailable = vrSupported;
+                
+                if (!vrSupported) {
+                    issues.push({
+                        type: 'vr-session',
+                        message: 'VR sessions not supported',
+                        solution: 'Connect a VR headset or enable WebXR flags'
+                    });
+                }
+            } catch (error) {
+                console.warn('VR support check failed:', error);
+                issues.push({
+                    type: 'vr-check-failed',
+                    message: 'Failed to check VR support',
+                    solution: 'Check browser WebXR flags or permissions'
+                });
+            }
+        }
+        
+        this.compatibilityIssues = issues;
+    }
+
+    updateCompatibilityUI() {
+        // Update HTTPS status
+        const httpsStatus = document.getElementById('https-status');
+        if (this.isHTTPS()) {
+            httpsStatus.className = 'status status--success';
+            httpsStatus.innerHTML = '✅ HTTPS: Secure';
+        } else {
+            httpsStatus.className = 'status status--error';
+            httpsStatus.innerHTML = '❌ HTTPS: Required';
+        }
+        
+        // Update WebXR status
+        const webxrStatus = document.getElementById('webxr-status');
+        if (this.webXRSupported) {
+            webxrStatus.className = 'status status--success';
+            webxrStatus.innerHTML = '✅ WebXR: Available';
+        } else {
+            webxrStatus.className = 'status status--error';
+            webxrStatus.innerHTML = '❌ WebXR: Not Available';
+        }
+        
+        // Update VR status
+        const vrStatus = document.getElementById('vr-status');
+        if (this.vrSessionAvailable) {
+            vrStatus.className = 'status status--success';
+            vrStatus.innerHTML = '✅ VR Support: Ready';
+        } else if (this.webXRSupported) {
+            vrStatus.className = 'status status--warning';
+            vrStatus.innerHTML = '⚠️ VR Support: Limited';
+        } else {
+            vrStatus.className = 'status status--error';
+            vrStatus.innerHTML = '❌ VR Support: None';
+        }
+        
+        // Show error/troubleshooting panels if needed
+        if (this.compatibilityIssues.length > 0) {
+            this.showCompatibilityIssues();
+        }
+        
+        // Update current mode
+        const modeElement = document.getElementById('current-mode');
+        if (this.vrSessionAvailable) {
+            modeElement.textContent = 'VR Ready';
+            modeElement.style.color = 'var(--color-success)';
+        } else {
+            modeElement.textContent = 'Desktop Fallback';
+            modeElement.style.color = 'var(--color-warning)';
+        }
+    }
+
+    showCompatibilityIssues() {
+        const errorPanel = document.getElementById('error-panel');
+        const errorList = document.getElementById('error-list');
+        const troubleshooting = document.getElementById('troubleshooting');
+        
+        // Build error list
+        let errorHTML = '<ul>';
+        this.compatibilityIssues.forEach(issue => {
+            errorHTML += `<li><strong>${issue.message}</strong><br><small>${issue.solution}</small></li>`;
+        });
+        errorHTML += '</ul>';
+        
+        errorList.innerHTML = errorHTML;
+        errorPanel.classList.remove('hidden');
+        troubleshooting.classList.remove('hidden');
+    }
+
+    showLoadingStep(stepId, text) {
+        const step = document.getElementById(stepId);
+        if (step) {
+            step.textContent = text;
+            step.classList.add('completed');
+        }
     }
 
     createScene() {
         // Scene
         this.scene = new THREE.Scene();
         this.scene.background = new THREE.Color(0x404040);
+        this.scene.fog = new THREE.Fog(0x404040, 5, 15);
 
         // Camera
-        this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        this.camera = new THREE.PerspectiveCamera(
+            75, 
+            window.innerWidth / window.innerHeight, 
+            0.1, 
+            1000
+        );
         this.camera.position.set(0, 1.6, 3);
 
-        // Renderer
-        this.renderer = new THREE.WebGLRenderer({ antialias: true });
-        this.renderer.setPixelRatio(window.devicePixelRatio);
+        // Renderer with enhanced settings
+        this.renderer = new THREE.WebGLRenderer({ 
+            antialias: true,
+            powerPreference: 'high-performance'
+        });
+        this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         this.renderer.setSize(window.innerWidth, window.innerHeight);
-        this.renderer.xr.enabled = true;
         this.renderer.shadowMap.enabled = true;
         this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        this.renderer.outputEncoding = THREE.sRGBEncoding;
+        this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        this.renderer.toneMappingExposure = 1.2;
+        
         document.body.appendChild(this.renderer.domElement);
 
-        // Add orbit controls for desktop testing
-        this.controls = new THREE.OrbitControls(this.camera, this.renderer.domElement);
+        // Desktop controls
+        this.controls = new OrbitControls(this.camera, this.renderer.domElement);
         this.controls.target.set(0, 1.6, 0);
+        this.controls.enableDamping = true;
+        this.controls.dampingFactor = 0.05;
+        this.controls.screenSpacePanning = false;
+        this.controls.minDistance = 1;
+        this.controls.maxDistance = 10;
+        this.controls.maxPolarAngle = Math.PI / 1.8;
         this.controls.update();
     }
 
     createRoom() {
         const roomGroup = new THREE.Group();
+        const { width, height, depth } = { width: 10, height: 4, depth: 10 };
         
-        // Room dimensions from data
-        const width = 10, height = 4, depth = 10;
+        // Enhanced materials with textures
+        const wallMaterial = new THREE.MeshLambertMaterial({ 
+            color: 0x8B7355,
+            transparent: true,
+            opacity: 0.9
+        });
         
-        // Materials
-        const wallMaterial = new THREE.MeshLambertMaterial({ color: 0x8B7355 });
-        const floorMaterial = new THREE.MeshLambertMaterial({ color: 0x654321 });
-        const ceilingMaterial = new THREE.MeshLambertMaterial({ color: 0xF5F5DC });
+        const floorMaterial = new THREE.MeshLambertMaterial({ 
+            color: 0x654321
+        });
+        
+        const ceilingMaterial = new THREE.MeshLambertMaterial({ 
+            color: 0xF5F5DC
+        });
 
         // Floor
         const floorGeometry = new THREE.PlaneGeometry(width, depth);
@@ -89,7 +299,7 @@ class VRObjectCreator {
         roomGroup.add(floor);
 
         // Ceiling
-        const ceiling = new THREE.Mesh(floorGeometry, ceilingMaterial);
+        const ceiling = new THREE.Mesh(floorGeometry.clone(), ceilingMaterial);
         ceiling.rotation.x = Math.PI / 2;
         ceiling.position.y = height;
         roomGroup.add(ceiling);
@@ -98,25 +308,25 @@ class VRObjectCreator {
         const wallGeometry = new THREE.PlaneGeometry(width, height);
         
         // Back wall
-        const backWall = new THREE.Mesh(wallGeometry, wallMaterial);
+        const backWall = new THREE.Mesh(wallGeometry.clone(), wallMaterial.clone());
         backWall.position.set(0, height / 2, -depth / 2);
         roomGroup.add(backWall);
 
-        // Front wall
-        const frontWall = new THREE.Mesh(wallGeometry, wallMaterial);
+        // Front wall (partial for entrance)
+        const frontWall = new THREE.Mesh(wallGeometry.clone(), wallMaterial.clone());
         frontWall.position.set(0, height / 2, depth / 2);
         frontWall.rotation.y = Math.PI;
         roomGroup.add(frontWall);
 
-        // Left wall
-        const leftWallGeometry = new THREE.PlaneGeometry(depth, height);
-        const leftWall = new THREE.Mesh(leftWallGeometry, wallMaterial);
+        // Side walls
+        const sideWallGeometry = new THREE.PlaneGeometry(depth, height);
+        
+        const leftWall = new THREE.Mesh(sideWallGeometry.clone(), wallMaterial.clone());
         leftWall.position.set(-width / 2, height / 2, 0);
         leftWall.rotation.y = Math.PI / 2;
         roomGroup.add(leftWall);
 
-        // Right wall
-        const rightWall = new THREE.Mesh(leftWallGeometry, wallMaterial);
+        const rightWall = new THREE.Mesh(sideWallGeometry.clone(), wallMaterial.clone());
         rightWall.position.set(width / 2, height / 2, 0);
         rightWall.rotation.y = -Math.PI / 2;
         roomGroup.add(rightWall);
@@ -127,7 +337,10 @@ class VRObjectCreator {
 
     createPlatform() {
         const platformGeometry = new THREE.BoxGeometry(4, 0.2, 4);
-        const platformMaterial = new THREE.MeshLambertMaterial({ color: 0x8B4513 });
+        const platformMaterial = new THREE.MeshLambertMaterial({ 
+            color: 0x8B4513
+        });
+        
         this.platform = new THREE.Mesh(platformGeometry, platformMaterial);
         this.platform.position.set(0, 0.1, 0);
         this.platform.castShadow = true;
@@ -163,7 +376,7 @@ class VRObjectCreator {
             ];
             
             legPositions.forEach(legPos => {
-                const leg = new THREE.Mesh(legGeometry, legMaterial);
+                const leg = new THREE.Mesh(legGeometry.clone(), legMaterial.clone());
                 leg.position.set(legPos[0], legPos[1], legPos[2]);
                 leg.castShadow = true;
                 tableGroup.add(leg);
@@ -181,8 +394,12 @@ class VRObjectCreator {
 
         // Menu background
         const menuBg = new THREE.Mesh(
-            new THREE.PlaneGeometry(4, 1.5),
-            new THREE.MeshLambertMaterial({ color: 0x333333, transparent: true, opacity: 0.8 })
+            new THREE.PlaneGeometry(4, 1.8),
+            new THREE.MeshLambertMaterial({ 
+                color: 0x333333, 
+                transparent: true, 
+                opacity: 0.9
+            })
         );
         menuGroup.add(menuBg);
 
@@ -190,7 +407,7 @@ class VRObjectCreator {
         const titleGeometry = new THREE.PlaneGeometry(2, 0.3);
         const titleMaterial = new THREE.MeshLambertMaterial({ color: 0x00FFFF });
         const title = new THREE.Mesh(titleGeometry, titleMaterial);
-        title.position.set(0, 0.5, 0.01);
+        title.position.set(0, 0.6, 0.01);
         menuGroup.add(title);
 
         // Object creation buttons
@@ -205,7 +422,7 @@ class VRObjectCreator {
             const row = Math.floor(index / buttonsPerRow);
             const col = index % buttonsPerRow;
             const x = (col - 1) * (buttonWidth + 0.2);
-            const y = 0.1 - row * (buttonHeight + 0.1);
+            const y = 0.1 - row * (buttonHeight + 0.15);
 
             const buttonGeometry = new THREE.PlaneGeometry(buttonWidth, buttonHeight);
             const buttonMaterial = new THREE.MeshLambertMaterial({ 
@@ -213,6 +430,7 @@ class VRObjectCreator {
                 transparent: true,
                 opacity: 0.8
             });
+            
             const button = new THREE.Mesh(buttonGeometry, buttonMaterial);
             button.position.set(x, y, 0.02);
             button.userData = { 
@@ -228,10 +446,14 @@ class VRObjectCreator {
 
         // Delete mode button
         const deleteButton = new THREE.Mesh(
-            new THREE.PlaneGeometry(1, 0.3),
-            new THREE.MeshLambertMaterial({ color: 0xFF0000, transparent: true, opacity: 0.8 })
+            new THREE.PlaneGeometry(1.2, 0.3),
+            new THREE.MeshLambertMaterial({ 
+                color: 0xFF0000, 
+                transparent: true, 
+                opacity: 0.8 
+            })
         );
-        deleteButton.position.set(0, -0.5, 0.02);
+        deleteButton.position.set(0, -0.6, 0.02);
         deleteButton.userData = { 
             type: 'deleteButton',
             originalColor: 0xFF0000,
@@ -256,103 +478,129 @@ class VRObjectCreator {
         return colors[type] || 0xFFFFFF;
     }
 
-    setupVR() {
-        // Check WebXR support
-        if ('xr' in navigator) {
-            navigator.xr.isSessionSupported('immersive-vr').then((supported) => {
-                if (supported) {
-                    const vrButton = THREE.VRButton.createButton(this.renderer);
-                    document.body.appendChild(vrButton);
-                    document.getElementById('xr-status').textContent = 'XR Ready: Supported';
-                    document.getElementById('xr-status').className = 'status status--success';
-                    this.inputMethod = 'vr-ready';
-                } else {
-                    document.getElementById('xr-status').textContent = 'XR Ready: VR Not Supported';
-                    document.getElementById('xr-status').className = 'status status--warning';
-                }
-            }).catch(() => {
-                document.getElementById('xr-status').textContent = 'XR Ready: Check Failed';
-                document.getElementById('xr-status').className = 'status status--error';
-            });
-        } else {
-            document.getElementById('xr-status').textContent = 'XR Ready: Not Available';
-            document.getElementById('xr-status').className = 'status status--error';
+    async setupVR() {
+        // Only setup VR if WebXR is supported
+        if (!this.webXRSupported) {
+            console.log('WebXR not supported, using desktop fallback');
+            return;
         }
 
-        // Setup controllers
-        this.setupControllers();
-        this.setupHandTracking();
-    }
+        try {
+            // Enable XR on renderer
+            this.renderer.xr.enabled = true;
 
-    setupControllers() {
-        // Controller 1
-        const controller1 = this.renderer.xr.getController(0);
-        controller1.addEventListener('selectstart', (event) => this.onSelectStart(event, 0));
-        controller1.addEventListener('selectend', (event) => this.onSelectEnd(event, 0));
-        controller1.addEventListener('connected', (event) => this.onControllerConnected(event, 0));
-        controller1.addEventListener('disconnected', () => this.onControllerDisconnected(0));
-        this.controllers.push(controller1);
+            // Create VR button only if VR sessions are supported
+            if (this.vrSessionAvailable) {
+                const vrButton = VRButton.createButton(this.renderer, {
+                    onUnsupported: () => {
+                        console.log('VR not supported');
+                        this.showVRError('VR headset not detected or not supported');
+                    }
+                });
+                document.body.appendChild(vrButton);
+                console.log('VR button created and added to DOM');
+            } else {
+                console.log('VR sessions not available, no VR button created');
+            }
 
-        // Controller 2
-        const controller2 = this.renderer.xr.getController(1);
-        controller2.addEventListener('selectstart', (event) => this.onSelectStart(event, 1));
-        controller2.addEventListener('selectend', (event) => this.onSelectEnd(event, 1));
-        controller2.addEventListener('connected', (event) => this.onControllerConnected(event, 1));
-        controller2.addEventListener('disconnected', () => this.onControllerDisconnected(1));
-        this.controllers.push(controller2);
-
-        // Add controllers to scene
-        this.controllers.forEach(controller => {
-            this.scene.add(controller);
+            // Setup controllers
+            await this.setupControllers();
             
-            // Add raycaster line
-            const line = new THREE.BufferGeometry().setFromPoints([
-                new THREE.Vector3(0, 0, 0),
-                new THREE.Vector3(0, 0, -1)
-            ]);
-            const rayLine = new THREE.Line(line, new THREE.LineBasicMaterial({ color: 0x00FFFF }));
-            rayLine.scale.z = 0.5;
-            controller.add(rayLine);
-        });
-
-        // Add controller grips
-        const controllerGrip1 = this.renderer.xr.getControllerGrip(0);
-        const controllerGrip2 = this.renderer.xr.getControllerGrip(1);
-        this.scene.add(controllerGrip1);
-        this.scene.add(controllerGrip2);
+        } catch (error) {
+            console.error('VR setup failed:', error);
+            this.showVRError('Failed to initialize VR: ' + error.message);
+        }
     }
 
-    setupHandTracking() {
-        // Hand tracking setup would go here
-        // This is more complex and requires additional libraries
-        // For now, we'll focus on controller support
+    async setupControllers() {
+        if (!this.renderer.xr) return;
+
+        try {
+            // Controller 1
+            const controller1 = this.renderer.xr.getController(0);
+            controller1.addEventListener('selectstart', (e) => this.onSelectStart(e, 0));
+            controller1.addEventListener('selectend', (e) => this.onSelectEnd(e, 0));
+            controller1.addEventListener('connected', (e) => this.onControllerConnected(e, 0));
+            controller1.addEventListener('disconnected', () => this.onControllerDisconnected(0));
+            this.controllers.push(controller1);
+            this.scene.add(controller1);
+
+            // Controller 2
+            const controller2 = this.renderer.xr.getController(1);
+            controller2.addEventListener('selectstart', (e) => this.onSelectStart(e, 1));
+            controller2.addEventListener('selectend', (e) => this.onSelectEnd(e, 1));
+            controller2.addEventListener('connected', (e) => this.onControllerConnected(e, 1));
+            controller2.addEventListener('disconnected', () => this.onControllerDisconnected(1));
+            this.controllers.push(controller2);
+            this.scene.add(controller2);
+
+            // Add visual ray indicators
+            this.controllers.forEach(controller => {
+                const line = new THREE.BufferGeometry().setFromPoints([
+                    new THREE.Vector3(0, 0, 0),
+                    new THREE.Vector3(0, 0, -1)
+                ]);
+                const rayLine = new THREE.Line(line, new THREE.LineBasicMaterial({ 
+                    color: 0x00FFFF,
+                    linewidth: 2
+                }));
+                rayLine.scale.z = 2;
+                controller.add(rayLine);
+            });
+
+            // Add controller grips for better visual feedback
+            const controllerGrip1 = this.renderer.xr.getControllerGrip(0);
+            const controllerGrip2 = this.renderer.xr.getControllerGrip(1);
+            this.scene.add(controllerGrip1);
+            this.scene.add(controllerGrip2);
+            
+        } catch (error) {
+            console.warn('Controller setup failed:', error);
+        }
     }
 
     setupLights() {
         // Ambient light
-        const ambientLight = new THREE.AmbientLight(0x404040, 0.4);
+        const ambientLight = new THREE.AmbientLight(0x404040, 0.6);
         this.scene.add(ambientLight);
 
-        // Directional light
-        const directionalLight = new THREE.DirectionalLight(0xFFFFFF, 0.8);
+        // Main directional light
+        const directionalLight = new THREE.DirectionalLight(0xFFFFFF, 1.0);
         directionalLight.position.set(5, 10, 5);
         directionalLight.castShadow = true;
         directionalLight.shadow.mapSize.width = 2048;
         directionalLight.shadow.mapSize.height = 2048;
         directionalLight.shadow.camera.near = 0.5;
-        directionalLight.shadow.camera.far = 500;
+        directionalLight.shadow.camera.far = 50;
+        directionalLight.shadow.camera.left = -10;
+        directionalLight.shadow.camera.right = 10;
+        directionalLight.shadow.camera.top = 10;
+        directionalLight.shadow.camera.bottom = -10;
         this.scene.add(directionalLight);
 
-        // Point light for better object visibility
-        const pointLight = new THREE.PointLight(0xFFFFFF, 0.5, 100);
+        // Fill light
+        const pointLight = new THREE.PointLight(0xFFFFFF, 0.4, 100);
         pointLight.position.set(0, 3, 0);
+        pointLight.castShadow = true;
         this.scene.add(pointLight);
+
+        // Menu lighting
+        const menuLight = new THREE.SpotLight(0xFFFFFF, 0.8);
+        menuLight.position.set(0, 3, -2);
+        menuLight.target = this.menu;
+        menuLight.angle = Math.PI / 6;
+        menuLight.penumbra = 0.1;
+        this.scene.add(menuLight);
     }
 
     onControllerConnected(event, index) {
-        console.log(`Controller ${index} connected:`, event.data.gamepad);
-        this.inputMethod = 'controllers';
+        console.log(`Controller ${index} connected:`, event.data);
+        this.inputMethod = 'vr-controllers';
         this.updateUI();
+        
+        // Show VR instructions
+        document.getElementById('desktop-instructions').classList.add('hidden');
+        document.getElementById('vr-instructions').classList.remove('hidden');
     }
 
     onControllerDisconnected(index) {
@@ -364,12 +612,12 @@ class VRObjectCreator {
 
     onSelectStart(event, controllerIndex) {
         const controller = this.controllers[controllerIndex];
-        const intersections = this.getIntersections(controller);
+        if (!controller) return;
 
+        const intersections = this.getIntersections(controller);
         if (intersections.length > 0) {
             const intersection = intersections[0];
             const object = intersection.object;
-
             this.handleObjectInteraction(object, controller, controllerIndex);
         }
     }
@@ -383,8 +631,8 @@ class VRObjectCreator {
     getIntersections(controller) {
         const raycaster = new THREE.Raycaster();
         const tempMatrix = new THREE.Matrix4();
-        tempMatrix.identity().extractRotation(controller.matrixWorld);
         
+        tempMatrix.identity().extractRotation(controller.matrixWorld);
         raycaster.ray.origin.setFromMatrixPosition(controller.matrixWorld);
         raycaster.ray.direction.set(0, 0, -1).applyMatrix4(tempMatrix);
 
@@ -394,6 +642,28 @@ class VRObjectCreator {
         ];
 
         return raycaster.intersectObjects(intersectableObjects);
+    }
+
+    handleMouseInteraction(event) {
+        // Update mouse position
+        this.mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+        this.mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+        // Update raycaster
+        this.mouseRaycaster.setFromCamera(this.mouse, this.camera);
+
+        // Find intersections
+        const intersectableObjects = [
+            ...this.objects,
+            ...this.menuButtons
+        ];
+
+        const intersects = this.mouseRaycaster.intersectObjects(intersectableObjects);
+
+        if (intersects.length > 0) {
+            const object = intersects[0].object;
+            this.handleObjectInteraction(object, null, null);
+        }
     }
 
     handleObjectInteraction(object, controller, controllerIndex) {
@@ -422,28 +692,6 @@ class VRObjectCreator {
         }
     }
 
-    handleMouseInteraction(event) {
-        // Update mouse position
-        this.mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
-        this.mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
-
-        // Update raycaster
-        this.mouseRaycaster.setFromCamera(this.mouse, this.camera);
-
-        // Find intersections
-        const intersectableObjects = [
-            ...this.objects,
-            ...this.menuButtons
-        ];
-
-        const intersects = this.mouseRaycaster.intersectObjects(intersectableObjects);
-
-        if (intersects.length > 0) {
-            const object = intersects[0].object;
-            this.handleObjectInteraction(object, null, null);
-        }
-    }
-
     highlightButton(button) {
         // Reset all buttons to original state
         this.menuButtons.forEach(btn => {
@@ -459,7 +707,7 @@ class VRObjectCreator {
         setTimeout(() => {
             button.material.color.setHex(button.userData.originalColor);
             button.material.opacity = button.userData.originalOpacity;
-        }, 200);
+        }, 300);
     }
 
     createObject(type) {
@@ -468,6 +716,7 @@ class VRObjectCreator {
             color: this.getObjectColor(type)
         });
 
+        // Create geometry based on type
         switch (type) {
             case 'cube':
                 geometry = new THREE.BoxGeometry(0.5, 0.5, 0.5);
@@ -492,21 +741,29 @@ class VRObjectCreator {
         }
 
         const object = new THREE.Mesh(geometry, material);
+        
+        // Random position on platform
         object.position.set(
             (Math.random() - 0.5) * 3,
             1 + Math.random() * 0.5,
             (Math.random() - 0.5) * 3
         );
+        
+        // Enable shadows
         object.castShadow = true;
         object.receiveShadow = true;
+        
+        // Set user data
         object.userData = { 
             type: 'interactable',
             objectType: type,
-            id: this.objects.length
+            id: Date.now(),
+            created: new Date()
         };
 
         this.objects.push(object);
         this.scene.add(object);
+        
         console.log(`Created ${type} object. Total objects: ${this.objects.length}`);
         this.updateUI();
     }
@@ -516,6 +773,11 @@ class VRObjectCreator {
         if (index > -1) {
             this.objects.splice(index, 1);
             this.scene.remove(object);
+            
+            // Dispose of geometry and material to free memory
+            object.geometry.dispose();
+            object.material.dispose();
+            
             console.log(`Deleted object. Total objects: ${this.objects.length}`);
             this.updateUI();
         }
@@ -526,7 +788,7 @@ class VRObjectCreator {
         this.grabbedController = controllerIndex;
         
         if (controller) {
-            // Calculate grab offset
+            // Calculate grab offset for VR
             const controllerPosition = new THREE.Vector3();
             controllerPosition.setFromMatrixPosition(controller.matrixWorld);
             this.grabOffset.copy(object.position).sub(controllerPosition);
@@ -537,28 +799,17 @@ class VRObjectCreator {
         
         // Visual feedback
         object.material.emissive.setHex(0x444444);
+        
+        console.log('Object grabbed:', object.userData.objectType);
     }
 
     releaseObject() {
         if (this.grabbedObject) {
             this.grabbedObject.material.emissive.setHex(0x000000);
+            console.log('Object released:', this.grabbedObject.userData.objectType);
             this.grabbedObject = null;
             this.grabbedController = null;
         }
-    }
-
-    updateDeleteMode() {
-        const deleteButton = this.menuButtons.find(btn => 
-            btn.userData.type === 'deleteButton'
-        );
-        
-        if (deleteButton) {
-            deleteButton.material.color.setHex(this.isDeleteMode ? 0x00FF00 : 0xFF0000);
-            deleteButton.userData.originalColor = this.isDeleteMode ? 0x00FF00 : 0xFF0000;
-        }
-        
-        console.log(`Delete mode: ${this.isDeleteMode ? 'ON' : 'OFF'}`);
-        this.updateUI();
     }
 
     updateGrabbedObject() {
@@ -582,69 +833,231 @@ class VRObjectCreator {
         }
     }
 
+    updateDeleteMode() {
+        const deleteButton = this.menuButtons.find(btn => 
+            btn.userData.type === 'deleteButton'
+        );
+        
+        if (deleteButton) {
+            const newColor = this.isDeleteMode ? 0x00FF00 : 0xFF0000;
+            deleteButton.material.color.setHex(newColor);
+            deleteButton.userData.originalColor = newColor;
+        }
+
+        // Update desktop button
+        const toggleDeleteBtn = document.getElementById('toggle-delete');
+        if (toggleDeleteBtn) {
+            if (this.isDeleteMode) {
+                toggleDeleteBtn.textContent = '🗑️ Delete Mode: ON';
+                toggleDeleteBtn.classList.add('delete-active');
+            } else {
+                toggleDeleteBtn.textContent = '🗑️ Delete Mode: OFF';
+                toggleDeleteBtn.classList.remove('delete-active');
+            }
+        }
+        
+        console.log(`Delete mode: ${this.isDeleteMode ? 'ON' : 'OFF'}`);
+        this.updateUI();
+    }
+
     updateUI() {
-        // Update object count
         const count = this.objects.length;
+        
+        // Update object counts
         document.getElementById('object-count').textContent = `Objects: ${count}`;
-        document.getElementById('vr-object-count').textContent = `Objects: ${count}`;
+        const vrCount = document.getElementById('vr-object-count');
+        if (vrCount) vrCount.textContent = `Objects: ${count}`;
         
         // Update input method
         document.getElementById('input-method').textContent = `Input: ${this.inputMethod}`;
+        document.getElementById('input-method').className = 
+            `status ${this.inputMethod.includes('vr') ? 'status--success' : 'status--info'}`;
         
         // Update VR mode indicator
         const mode = this.isDeleteMode ? 'Delete' : 'Create';
-        document.getElementById('vr-mode').textContent = `Mode: ${mode}`;
+        const vrMode = document.getElementById('vr-mode-indicator');
+        if (vrMode) vrMode.textContent = `Mode: ${mode}`;
     }
 
-    showError(message) {
-        document.getElementById('error-text').textContent = message;
-        document.getElementById('error-message').classList.remove('hidden');
+    showVRError(message) {
+        console.error('VR Error:', message);
+        // Could add UI notification here
     }
 
     setupEventListeners() {
-        window.addEventListener('resize', () => {
-            this.camera.aspect = window.innerWidth / window.innerHeight;
-            this.camera.updateProjectionMatrix();
-            this.renderer.setSize(window.innerWidth, window.innerHeight);
+        // Window resize
+        window.addEventListener('resize', () => this.onWindowResize());
+
+        // Mouse interaction for desktop
+        this.renderer.domElement.addEventListener('click', (e) => this.handleMouseInteraction(e));
+
+        // Desktop creation buttons
+        const createButtons = document.querySelectorAll('.create-btn');
+        createButtons.forEach(button => {
+            button.addEventListener('click', (e) => {
+                const type = e.target.dataset.type;
+                if (type) {
+                    this.createObject(type);
+                    console.log(`Desktop button clicked: ${type}`);
+                }
+            });
         });
 
-        // Mouse interaction for desktop testing
-        this.renderer.domElement.addEventListener('click', this.handleMouseInteraction.bind(this));
+        // Delete toggle button
+        const deleteToggle = document.getElementById('toggle-delete');
+        if (deleteToggle) {
+            deleteToggle.addEventListener('click', () => {
+                this.isDeleteMode = !this.isDeleteMode;
+                this.updateDeleteMode();
+            });
+        }
+
+        // Close buttons for dialogs
+        const closeError = document.getElementById('close-error');
+        if (closeError) {
+            closeError.addEventListener('click', () => {
+                document.getElementById('error-panel').classList.add('hidden');
+            });
+        }
+
+        const closeTroubleshoot = document.getElementById('close-troubleshoot');
+        if (closeTroubleshoot) {
+            closeTroubleshoot.addEventListener('click', () => {
+                document.getElementById('troubleshooting').classList.add('hidden');
+            });
+        }
 
         // VR session events
-        this.renderer.xr.addEventListener('sessionstart', () => {
-            document.body.classList.add('vr-mode');
-            document.getElementById('vr-overlay').classList.remove('hidden');
-            this.inputMethod = 'vr-controllers';
-            this.updateUI();
-        });
+        if (this.renderer.xr) {
+            this.renderer.xr.addEventListener('sessionstart', () => {
+                console.log('VR session started');
+                document.body.classList.add('vr-mode');
+                document.getElementById('vr-overlay').classList.remove('hidden');
+                this.inputMethod = 'vr-session';
+                this.updateUI();
+            });
 
-        this.renderer.xr.addEventListener('sessionend', () => {
-            document.body.classList.remove('vr-mode');
-            document.getElementById('vr-overlay').classList.add('hidden');
-            this.inputMethod = 'mouse';
-            this.updateUI();
-        });
+            this.renderer.xr.addEventListener('sessionend', () => {
+                console.log('VR session ended');
+                document.body.classList.remove('vr-mode');
+                document.getElementById('vr-overlay').classList.add('hidden');
+                this.inputMethod = 'desktop';
+                this.updateUI();
+                
+                // Show desktop instructions again
+                document.getElementById('vr-instructions').classList.add('hidden');
+                document.getElementById('desktop-instructions').classList.remove('hidden');
+            });
+        }
+
+        // Retry WebXR button
+        const retryButton = document.getElementById('retry-webxr');
+        if (retryButton) {
+            retryButton.addEventListener('click', async () => {
+                console.log('Retrying WebXR detection...');
+                retryButton.disabled = true;
+                retryButton.textContent = '🔄 Checking...';
+                
+                try {
+                    await this.checkWebXRCompatibility();
+                    this.updateCompatibilityUI();
+                    await this.setupVR();
+                    console.log('WebXR retry completed');
+                } catch (error) {
+                    console.error('WebXR retry failed:', error);
+                }
+                
+                setTimeout(() => {
+                    retryButton.disabled = false;
+                    retryButton.textContent = '🔄 Retry WebXR Detection';
+                }, 2000);
+            });
+        }
+
+        // Keyboard controls for desktop
+        document.addEventListener('keydown', (event) => this.onKeyDown(event));
+    }
+
+    onKeyDown(event) {
+        if (this.inputMethod.includes('vr')) return; // Skip keyboard in VR mode
+        
+        switch (event.code) {
+            case 'KeyC':
+                this.createObject('cube');
+                break;
+            case 'KeyS':
+                this.createObject('sphere');
+                break;
+            case 'KeyT':
+                this.createObject('torus');
+                break;
+            case 'KeyD':
+                this.isDeleteMode = !this.isDeleteMode;
+                this.updateDeleteMode();
+                break;
+            case 'Escape':
+                if (this.grabbedObject) {
+                    this.releaseObject();
+                }
+                break;
+        }
+    }
+
+    onWindowResize() {
+        this.camera.aspect = window.innerWidth / window.innerHeight;
+        this.camera.updateProjectionMatrix();
+        this.renderer.setSize(window.innerWidth, window.innerHeight);
     }
 
     animate() {
         this.renderer.setAnimationLoop(() => {
+            // Update controls (desktop mode)
+            if (this.controls && !this.renderer.xr.isPresenting) {
+                this.controls.update();
+            }
+            
+            // Update grabbed object
             this.updateGrabbedObject();
+            
+            // Render
             this.renderer.render(this.scene, this.camera);
         });
     }
 }
 
-// Initialize the application
+// Initialize the application when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
-    new VRObjectCreator();
+    console.log('Initializing VR Object Creator...');
+    try {
+        new VRObjectCreator();
+    } catch (error) {
+        console.error('Failed to initialize VR Object Creator:', error);
+        
+        // Show error in UI
+        const loadingOverlay = document.getElementById('loading-overlay');
+        if (loadingOverlay) {
+            loadingOverlay.innerHTML = `
+                <div class="loading-content">
+                    <div style="color: var(--color-error); font-size: var(--font-size-xl); margin-bottom: var(--space-16);">
+                        ❌ Application Failed to Load
+                    </div>
+                    <div style="font-size: var(--font-size-md); margin-bottom: var(--space-16);">
+                        ${error.message}
+                    </div>
+                    <button onclick="location.reload()" class="btn btn--primary">
+                        🔄 Reload Page
+                    </button>
+                </div>
+            `;
+        }
+    }
 });
 
-// Handle page visibility for performance
+// Handle page visibility changes for performance
 document.addEventListener('visibilitychange', () => {
     if (document.hidden) {
-        // Pause or reduce performance when tab is hidden
+        console.log('Page hidden - reducing performance');
     } else {
-        // Resume full performance when tab is visible
+        console.log('Page visible - resuming full performance');
     }
 });
