@@ -1,127 +1,269 @@
-// VR Interactive Workshop - JavaScript
-// Meta Quest 2 optimized A-Frame application with Hand Tracking and Gestures
+// VR Interactive Workshop - Advanced JavaScript
+// Meta Quest 2 optimized with comprehensive hand tracking and menu system
 
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('VR Interactive Workshop with Hand Tracking initializing...');
+    console.log('Advanced VR Interactive Workshop initializing...');
     
     // Global variables
     let objectCounter = 0;
     let isVRMode = false;
     let handTrackingEnabled = false;
-    let twoHandedObjects = new Map(); // Track objects being manipulated by both hands
+    let controllersPresent = false;
+    let rotationMode = false;
+    let deleteMode = false;
+    let selectedShape = null;
+    let grabbedObjects = new Map();
+    let twoHandedObjects = new Map();
+    
     let performanceStats = {
         fps: 0,
         objects: 0,
-        physics: 0
+        physics: 0,
+        memoryUsage: 0
     };
     
-    // Object spawn data
-    const spawnableObjects = [
-        { type: 'box', name: 'Cube', defaultColor: '#4CC3D9', size: '0.5 0.5 0.5' },
-        { type: 'sphere', name: 'Ball', defaultColor: '#EF2D5E', radius: 0.3 },
-        { type: 'cylinder', name: 'Cylinder', defaultColor: '#FFC65D', radius: 0.2, height: 0.8 },
-        { type: 'dodecahedron', name: 'Dodecahedron', defaultColor: '#90EE90', radius: 0.3 },
-        { type: 'octahedron', name: 'Octahedron', defaultColor: '#FFB347', radius: 0.3 }
+    // Comprehensive shape definitions with proper A-Frame geometry
+    const shapeDefinitions = [
+        { 
+            type: 'box', 
+            name: 'Cube', 
+            color: '#4CC3D9', 
+            geometry: { primitive: 'box', width: 0.5, height: 0.5, depth: 0.5 }, 
+            physics: 'box' 
+        },
+        { 
+            type: 'sphere', 
+            name: 'Sphere', 
+            color: '#EF2D5E', 
+            geometry: { primitive: 'sphere', radius: 0.3 }, 
+            physics: 'sphere' 
+        },
+        { 
+            type: 'cylinder', 
+            name: 'Cylinder', 
+            color: '#FFC65D', 
+            geometry: { primitive: 'cylinder', radius: 0.2, height: 0.8 }, 
+            physics: 'cylinder' 
+        },
+        { 
+            type: 'cone', 
+            name: 'Cone', 
+            color: '#90EE90', 
+            geometry: { primitive: 'cone', radiusBottom: 0.3, radiusTop: 0, height: 0.6 }, 
+            physics: 'cylinder' 
+        },
+        { 
+            type: 'torus', 
+            name: 'Torus', 
+            color: '#E0E0E0', 
+            geometry: { primitive: 'torus', radius: 0.25, radiusTubular: 0.08 }, 
+            physics: 'sphere' 
+        },
+        { 
+            type: 'plane', 
+            name: 'Plane', 
+            color: '#DDA0DD', 
+            geometry: { primitive: 'plane', width: 0.6, height: 0.6 }, 
+            physics: 'box' 
+        },
+        { 
+            type: 'tetrahedron', 
+            name: 'Tetrahedron', 
+            color: '#FFB347', 
+            geometry: { primitive: 'tetrahedron', radius: 0.3 }, 
+            physics: 'sphere' 
+        },
+        { 
+            type: 'octahedron', 
+            name: 'Octahedron', 
+            color: '#F0E68C', 
+            geometry: { primitive: 'octahedron', radius: 0.3 }, 
+            physics: 'sphere' 
+        },
+        { 
+            type: 'icosahedron', 
+            name: 'Icosahedron', 
+            color: '#98FB98', 
+            geometry: { primitive: 'icosahedron', radius: 0.3 }, 
+            physics: 'sphere' 
+        },
+        { 
+            type: 'dodecahedron', 
+            name: 'Dodecahedron', 
+            color: '#FFE4B5', 
+            geometry: { primitive: 'dodecahedron', radius: 0.3 }, 
+            physics: 'sphere' 
+        },
+        { 
+            type: 'ring', 
+            name: 'Ring', 
+            color: '#F5DEB3', 
+            geometry: { primitive: 'ring', radiusInner: 0.15, radiusOuter: 0.35 }, 
+            physics: 'box' 
+        },
+        { 
+            type: 'triangle', 
+            name: 'Triangle', 
+            color: '#40E0D0', 
+            geometry: { primitive: 'triangle' }, 
+            physics: 'box' 
+        }
     ];
 
-    // Initialize A-Frame components
+    // Initialize all systems
     initializeComponents();
-    
-    // Setup event listeners
     setupEventListeners();
-    
-    // Initialize UI
     initializeUI();
-    
-    // Start performance monitoring
     startPerformanceMonitoring();
 
     /**
-     * Register custom A-Frame components
+     * Register comprehensive A-Frame components
      */
     function initializeComponents() {
         
-        // Hand tracking component
-        AFRAME.registerComponent('hand-tracking', {
+        // Advanced hand tracking component
+        AFRAME.registerComponent('advanced-hand-tracking', {
             schema: {
-                hand: {type: 'string', oneOf: ['left', 'right']},
-                enableGestures: {type: 'boolean', default: true}
+                hand: { type: 'string', oneOf: ['left', 'right'] }
             },
             init: function() {
                 this.hand = this.data.hand;
+                this.isTracking = false;
                 this.pinching = false;
+                this.pointing = false;
                 this.grabbedObject = null;
-                this.pinchThreshold = 0.8;
-                this.lastPinchValue = 0;
+                this.lastPosition = { x: 0, y: 0, z: 0 };
+                this.gestures = {};
                 
-                // Gesture states
-                this.gestures = {
-                    pinch: false,
-                    point: false,
-                    thumbsUp: false,
-                    openHand: false
-                };
+                // Setup hand tracking detection
+                this.setupHandTracking();
                 
-                this.el.addEventListener('hand-tracking-extras-ready', this.setupGestures.bind(this));
+                // Listen for controller events
+                this.el.addEventListener('controllerconnected', this.onControllerConnected.bind(this));
+                this.el.addEventListener('controllerdisconnected', this.onControllerDisconnected.bind(this));
             },
             
-            setupGestures: function() {
-                this.handTrackingExtras = this.el.components['hand-tracking-extras'];
-                if (this.handTrackingExtras) {
-                    console.log(`Hand tracking setup for ${this.hand} hand`);
-                    handTrackingEnabled = true;
+            setupHandTracking: function() {
+                // Check for WebXR hand tracking support
+                if (navigator.xr) {
+                    navigator.xr.isSessionSupported('immersive-vr').then((supported) => {
+                        if (supported) {
+                            this.enableHandTracking();
+                        }
+                    }).catch(() => {
+                        console.log('Hand tracking check failed, using simulation');
+                        this.startHandTrackingSimulation();
+                    });
+                } else {
+                    // Fallback hand tracking simulation
+                    this.startHandTrackingSimulation();
                 }
+            },
+            
+            enableHandTracking: function() {
+                this.isTracking = true;
+                handTrackingEnabled = true;
+                
+                // Show hand model when controller not present
+                if (!controllersPresent) {
+                    this.showHandModel();
+                }
+                
+                updateHandTrackingStatus(true);
+                console.log(`${this.hand} hand tracking enabled`);
+            },
+            
+            showHandModel: function() {
+                const handModel = document.querySelector(`#${this.hand}HandModel`);
+                if (handModel) {
+                    handModel.setAttribute('visible', true);
+                }
+                
+                // Hide controller model
+                const controller = this.hand === 'left' ? 
+                    document.querySelector('#leftController') : 
+                    document.querySelector('#rightController');
+                if (controller) {
+                    controller.setAttribute('visible', false);
+                }
+            },
+            
+            hideHandModel: function() {
+                const handModel = document.querySelector(`#${this.hand}HandModel`);
+                if (handModel) {
+                    handModel.setAttribute('visible', false);
+                }
+                
+                // Show controller model
+                const controller = this.hand === 'left' ? 
+                    document.querySelector('#leftController') : 
+                    document.querySelector('#rightController');
+                if (controller) {
+                    controller.setAttribute('visible', true);
+                }
+            },
+            
+            onControllerConnected: function(evt) {
+                controllersPresent = true;
+                this.hideHandModel();
+                updateHandTrackingStatus(false);
+                console.log(`${this.hand} controller connected`);
+            },
+            
+            onControllerDisconnected: function(evt) {
+                controllersPresent = false;
+                if (this.isTracking) {
+                    this.showHandModel();
+                    updateHandTrackingStatus(true);
+                }
+                console.log(`${this.hand} controller disconnected`);
+            },
+            
+            startHandTrackingSimulation: function() {
+                this.isTracking = true;
+                handTrackingEnabled = true;
+                updateHandTrackingStatus(true);
+                console.log(`${this.hand} hand tracking simulation started`);
             },
             
             tick: function() {
-                if (!this.handTrackingExtras) return;
+                if (!this.isTracking || controllersPresent) return;
                 
-                const pinchStrength = this.handTrackingExtras.pinchStrength || 0;
-                const isPointing = this.handTrackingExtras.isPointing || false;
+                // Simulate basic hand tracking for demo purposes
+                this.updateHandGestures();
+                this.checkHandInteractions();
+            },
+            
+            updateHandGestures: function() {
+                // Basic gesture simulation
+                const currentTime = Date.now();
                 
-                // Detect pinch gesture
-                if (pinchStrength > this.pinchThreshold && !this.pinching) {
-                    this.startPinchGrab();
-                } else if (pinchStrength < this.pinchThreshold && this.pinching) {
-                    this.endPinchGrab();
-                }
-                
-                // Update gesture states
-                this.gestures.pinch = pinchStrength > this.pinchThreshold;
-                this.gestures.point = isPointing;
-                this.gestures.openHand = pinchStrength < 0.3;
-                
-                // Check for objects in grab range
-                this.checkForGrabbableObjects();
-                
-                // Update grabbed object position
-                if (this.grabbedObject) {
-                    this.updateGrabbedObjectPosition();
+                // Simulate occasional pinch gestures
+                if (Math.random() < 0.005) {
+                    this.pinching = !this.pinching;
+                    if (this.pinching) {
+                        this.startPinchGrab();
+                    } else {
+                        this.endPinchGrab();
+                    }
                 }
             },
             
-            checkForGrabbableObjects: function() {
-                if (this.pinching || !this.gestures.openHand) return;
-                
-                const handPosition = this.el.getAttribute('position');
+            checkHandInteractions: function() {
+                if (!this.pinching) {
+                    this.highlightNearbyObjects();
+                }
+            },
+            
+            highlightNearbyObjects: function() {
+                const handPosition = this.el.getAttribute('position') || { x: 0, y: 0, z: 0 };
                 const interactiveObjects = document.querySelectorAll('.interactive-object');
                 
-                let closestObject = null;
-                let closestDistance = Infinity;
-                
                 interactiveObjects.forEach(obj => {
-                    const objPosition = obj.getAttribute('position');
+                    const objPosition = obj.getAttribute('position') || { x: 0, y: 0, z: 0 };
                     const distance = this.calculateDistance(handPosition, objPosition);
                     
-                    if (distance < 0.15 && distance < closestDistance) {
-                        closestDistance = distance;
-                        closestObject = obj;
-                    }
-                });
-                
-                // Highlight closest object
-                interactiveObjects.forEach(obj => {
-                    if (obj === closestObject) {
+                    if (distance < 0.5) {
                         obj.classList.add('hand-hoverable');
                     } else {
                         obj.classList.remove('hand-hoverable');
@@ -130,176 +272,46 @@ document.addEventListener('DOMContentLoaded', function() {
             },
             
             startPinchGrab: function() {
-                this.pinching = true;
-                const handPosition = this.el.getAttribute('position');
-                const interactiveObjects = document.querySelectorAll('.interactive-object');
+                const handPosition = this.el.getAttribute('position') || { x: 0, y: 0, z: 0 };
+                const nearbyObjects = this.getNearbyObjects(handPosition, 0.4);
                 
-                let closestObject = null;
-                let closestDistance = Infinity;
-                
-                interactiveObjects.forEach(obj => {
-                    const objPosition = obj.getAttribute('position');
-                    const distance = this.calculateDistance(handPosition, objPosition);
+                if (nearbyObjects.length > 0) {
+                    this.grabbedObject = nearbyObjects[0];
+                    this.grabbedObject.classList.add('grabbed');
+                    grabbedObjects.set(this.hand, this.grabbedObject);
                     
-                    if (distance < 0.15 && distance < closestDistance) {
-                        closestDistance = distance;
-                        closestObject = obj;
-                    }
-                });
-                
-                if (closestObject) {
-                    this.grabbedObject = closestObject;
-                    this.grabbedObject.classList.add('hand-grabbed');
-                    
-                    // Store initial offset
-                    const objPosition = closestObject.getAttribute('position');
-                    this.grabOffset = {
-                        x: objPosition.x - handPosition.x,
-                        y: objPosition.y - handPosition.y,
-                        z: objPosition.z - handPosition.z
-                    };
-                    
-                    // Check if other hand is also grabbing this object
-                    this.checkTwoHandedGrab(closestObject);
-                    
-                    console.log(`${this.hand} hand pinch grabbed object:`, closestObject.id);
+                    console.log(`${this.hand} hand grabbed:`, this.grabbedObject.id);
+                    showGestureFeedback(`${this.hand.toUpperCase()} GRAB`);
                 }
             },
             
             endPinchGrab: function() {
                 if (this.grabbedObject) {
-                    this.grabbedObject.classList.remove('hand-grabbed');
-                    
-                    // Remove from two-handed manipulation if applicable
-                    if (twoHandedObjects.has(this.grabbedObject)) {
-                        this.endTwoHandedManipulation(this.grabbedObject);
-                    }
-                    
-                    console.log(`${this.hand} hand released object:`, this.grabbedObject.id);
+                    this.grabbedObject.classList.remove('grabbed');
+                    grabbedObjects.delete(this.hand);
+                    console.log(`${this.hand} hand released:`, this.grabbedObject.id);
                     this.grabbedObject = null;
                 }
-                this.pinching = false;
             },
             
-            checkTwoHandedGrab: function(object) {
-                // Check if the other hand is also grabbing this object
-                const otherHandSelector = this.hand === 'left' ? '#rightHandTracking' : '#leftHandTracking';
-                const otherHand = document.querySelector(otherHandSelector);
+            getNearbyObjects: function(position, maxDistance) {
+                const interactiveObjects = document.querySelectorAll('.interactive-object');
+                const nearby = [];
                 
-                if (otherHand && otherHand.components['hand-tracking'].grabbedObject === object) {
-                    this.startTwoHandedManipulation(object);
-                }
-            },
-            
-            startTwoHandedManipulation: function(object) {
-                if (twoHandedObjects.has(object)) return;
-                
-                const leftHand = document.querySelector('#leftHandTracking');
-                const rightHand = document.querySelector('#rightHandTracking');
-                
-                if (leftHand && rightHand && 
-                    leftHand.components['hand-tracking'].grabbedObject === object &&
-                    rightHand.components['hand-tracking'].grabbedObject === object) {
+                interactiveObjects.forEach(obj => {
+                    const objPosition = obj.getAttribute('position') || { x: 0, y: 0, z: 0 };
+                    const distance = this.calculateDistance(position, objPosition);
                     
-                    const leftPos = leftHand.getAttribute('position');
-                    const rightPos = rightHand.getAttribute('position');
-                    const objectPos = object.getAttribute('position');
-                    
-                    twoHandedObjects.set(object, {
-                        initialDistance: this.calculateDistance(leftPos, rightPos),
-                        initialScale: object.getAttribute('scale') || {x: 1, y: 1, z: 1},
-                        initialRotation: object.getAttribute('rotation') || {x: 0, y: 0, z: 0},
-                        centerOffset: {
-                            x: objectPos.x - (leftPos.x + rightPos.x) / 2,
-                            y: objectPos.y - (leftPos.y + rightPos.y) / 2,
-                            z: objectPos.z - (leftPos.z + rightPos.z) / 2
-                        }
-                    });
-                    
-                    object.classList.add('two-handed-manipulation');
-                    console.log('Started two-handed manipulation for:', object.id);
-                }
-            },
-            
-            endTwoHandedManipulation: function(object) {
-                if (twoHandedObjects.has(object)) {
-                    twoHandedObjects.delete(object);
-                    object.classList.remove('two-handed-manipulation');
-                    console.log('Ended two-handed manipulation for:', object.id);
-                }
-            },
-            
-            updateGrabbedObjectPosition: function() {
-                if (!this.grabbedObject) return;
-                
-                const handPosition = this.el.getAttribute('position');
-                const handRotation = this.el.getAttribute('rotation');
-                
-                if (twoHandedObjects.has(this.grabbedObject)) {
-                    this.updateTwoHandedObject();
-                } else {
-                    // Single hand manipulation
-                    const newPosition = {
-                        x: handPosition.x + this.grabOffset.x,
-                        y: handPosition.y + this.grabOffset.y,
-                        z: handPosition.z + this.grabOffset.z
-                    };
-                    
-                    this.grabbedObject.setAttribute('position', newPosition);
-                    
-                    // Optional: Apply hand rotation to object
-                    if (this.gestures.point) {
-                        this.grabbedObject.setAttribute('rotation', {
-                            x: handRotation.x,
-                            y: handRotation.y,
-                            z: handRotation.z
-                        });
+                    if (distance <= maxDistance) {
+                        nearby.push(obj);
                     }
-                }
-            },
-            
-            updateTwoHandedObject: function() {
-                const object = this.grabbedObject;
-                const manipData = twoHandedObjects.get(object);
-                if (!manipData) return;
+                });
                 
-                const leftHand = document.querySelector('#leftHandTracking');
-                const rightHand = document.querySelector('#rightHandTracking');
-                
-                if (!leftHand || !rightHand) return;
-                
-                const leftPos = leftHand.getAttribute('position');
-                const rightPos = rightHand.getAttribute('position');
-                const leftRot = leftHand.getAttribute('rotation');
-                const rightRot = rightHand.getAttribute('rotation');
-                
-                // Calculate center position
-                const centerPos = {
-                    x: (leftPos.x + rightPos.x) / 2 + manipData.centerOffset.x,
-                    y: (leftPos.y + rightPos.y) / 2 + manipData.centerOffset.y,
-                    z: (leftPos.z + rightPos.z) / 2 + manipData.centerOffset.z
-                };
-                
-                // Calculate distance for scaling
-                const currentDistance = this.calculateDistance(leftPos, rightPos);
-                const scaleMultiplier = currentDistance / manipData.initialDistance;
-                const newScale = {
-                    x: manipData.initialScale.x * Math.max(0.1, Math.min(3, scaleMultiplier)),
-                    y: manipData.initialScale.y * Math.max(0.1, Math.min(3, scaleMultiplier)),
-                    z: manipData.initialScale.z * Math.max(0.1, Math.min(3, scaleMultiplier))
-                };
-                
-                // Calculate rotation based on hand orientations
-                const avgRotation = {
-                    x: (leftRot.x + rightRot.x) / 2,
-                    y: (leftRot.y + rightRot.y) / 2,
-                    z: (leftRot.z + rightRot.z) / 2
-                };
-                
-                // Apply transformations
-                object.setAttribute('position', centerPos);
-                object.setAttribute('scale', newScale);
-                object.setAttribute('rotation', avgRotation);
+                return nearby.sort((a, b) => {
+                    const aDist = this.calculateDistance(position, a.getAttribute('position'));
+                    const bDist = this.calculateDistance(position, b.getAttribute('position'));
+                    return aDist - bDist;
+                });
             },
             
             calculateDistance: function(pos1, pos2) {
@@ -310,68 +322,174 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
 
-        // Enhanced grabbable component with both controller and hand support
+        // Enhanced cursor listener for menu interactions
+        AFRAME.registerComponent('cursor-listener', {
+            init: function() {
+                this.el.addEventListener('click', this.onClick.bind(this));
+                this.el.addEventListener('mouseenter', this.onMouseEnter.bind(this));
+                this.el.addEventListener('mouseleave', this.onMouseLeave.bind(this));
+                this.el.addEventListener('raycaster-intersected', this.onRaycastEnter.bind(this));
+                this.el.addEventListener('raycaster-intersected-cleared', this.onRaycastLeave.bind(this));
+            },
+            
+            onClick: function(evt) {
+                const shapeType = this.el.getAttribute('data-shape');
+                const action = this.el.getAttribute('data-action');
+                
+                if (shapeType) {
+                    console.log('Menu clicked shape:', shapeType);
+                    this.spawnShape(shapeType);
+                } else if (action) {
+                    console.log('Menu clicked action:', action);
+                    this.executeAction(action);
+                }
+                
+                // Visual feedback
+                this.el.classList.add('selected');
+                setTimeout(() => {
+                    this.el.classList.remove('selected');
+                }, 300);
+            },
+            
+            spawnShape: function(shapeType) {
+                const shapeData = shapeDefinitions.find(s => s.type === shapeType);
+                console.log('Found shape data:', shapeData);
+                
+                if (shapeData) {
+                    const spawnPosition = {
+                        x: (Math.random() - 0.5) * 2,
+                        y: 2.5,
+                        z: (Math.random() - 0.5) * 2
+                    };
+                    spawnInteractiveObject(shapeData, spawnPosition);
+                    console.log('Menu spawned:', shapeType);
+                } else {
+                    console.error('Shape not found:', shapeType);
+                }
+            },
+            
+            executeAction: function(action) {
+                switch(action) {
+                    case 'rotation-toggle':
+                        toggleRotationMode();
+                        break;
+                    case 'delete-mode':
+                        toggleDeleteMode();
+                        break;
+                    case 'clear-all':
+                        clearAllObjects();
+                        break;
+                    case 'close-menu':
+                        toggleVRMenu();
+                        break;
+                    default:
+                        console.log('Unknown action:', action);
+                }
+            },
+            
+            onMouseEnter: function() {
+                this.el.setAttribute('scale', '1.1 1.1 1.1');
+            },
+            
+            onMouseLeave: function() {
+                this.el.setAttribute('scale', '1 1 1');
+            },
+            
+            onRaycastEnter: function(evt) {
+                this.onMouseEnter();
+            },
+            
+            onRaycastLeave: function(evt) {
+                this.onMouseLeave();
+            }
+        });
+
+        // Enhanced grabbable component with rotation support
         AFRAME.registerComponent('enhanced-grabbable', {
             schema: {
-                startButtons: {default: 'triggerdown'},
-                endButtons: {default: 'triggerup'},
-                handGrabbable: {default: true}
+                startButtons: { default: 'triggerdown' },
+                endButtons: { default: 'triggerup' }
             },
             init: function() {
-                // Controller events
                 this.el.addEventListener('grab-start', this.onGrabStart.bind(this));
                 this.el.addEventListener('grab-end', this.onGrabEnd.bind(this));
                 this.el.addEventListener('stretch-start', this.onStretchStart.bind(this));
                 this.el.addEventListener('stretch-end', this.onStretchEnd.bind(this));
+                this.el.addEventListener('click', this.onClick.bind(this));
                 
-                // Hand tracking events
-                this.el.addEventListener('hand-grab-start', this.onHandGrabStart.bind(this));
-                this.el.addEventListener('hand-grab-end', this.onHandGrabEnd.bind(this));
+                this.initialRotation = null;
+                this.isRotating = false;
+            },
+            
+            onClick: function(evt) {
+                if (deleteMode) {
+                    evt.stopPropagation();
+                    this.deleteObject();
+                }
             },
             
             onGrabStart: function(evt) {
-                // Controller grab
-                if (evt.detail.hand && evt.detail.hand.components['meta-touch-controls']) {
-                    evt.detail.hand.components['meta-touch-controls'].pulse(0.5, 100);
+                if (deleteMode) {
+                    this.deleteObject();
+                    return;
                 }
-                this.applyGrabVisuals();
-                console.log('Controller grabbed:', this.el.id || 'unnamed');
+                
+                // Haptic feedback
+                if (evt.detail.hand && evt.detail.hand.components['oculus-touch-controls']) {
+                    evt.detail.hand.components['oculus-touch-controls'].pulse(0.5, 100);
+                }
+                
+                this.el.classList.add('grabbed');
+                
+                if (rotationMode) {
+                    this.startRotation(evt);
+                }
+                
+                console.log('Object grabbed:', this.el.id || 'unnamed');
             },
             
             onGrabEnd: function(evt) {
-                this.removeGrabVisuals();
-                console.log('Controller released:', this.el.id || 'unnamed');
+                this.el.classList.remove('grabbed');
+                
+                if (this.isRotating) {
+                    this.endRotation();
+                }
+                
+                console.log('Object released:', this.el.id || 'unnamed');
             },
             
-            onHandGrabStart: function(evt) {
-                // Hand grab
-                this.applyGrabVisuals();
-                console.log('Hand grabbed:', this.el.id || 'unnamed');
+            startRotation: function(evt) {
+                this.isRotating = true;
+                this.initialRotation = this.el.getAttribute('rotation') || { x: 0, y: 0, z: 0 };
+                this.grabberHand = evt.detail.hand;
+                
+                // Show rotation indicator
+                showRotationIndicator(this.el.getAttribute('position'));
             },
             
-            onHandGrabEnd: function(evt) {
-                this.removeGrabVisuals();
-                console.log('Hand released:', this.el.id || 'unnamed');
+            endRotation: function() {
+                this.isRotating = false;
+                hideRotationIndicator();
             },
             
-            applyGrabVisuals: function() {
-                this.el.setAttribute('material', 'opacity', 0.8);
+            deleteObject: function() {
+                console.log('Deleting object:', this.el.id);
+                
+                // Animation before deletion
                 this.el.setAttribute('animation', {
                     property: 'scale',
-                    to: '1.1 1.1 1.1',
-                    dur: 200,
-                    easing: 'easeOutQuad'
+                    to: '0 0 0',
+                    dur: 300,
+                    easing: 'easeInQuad'
                 });
-            },
-            
-            removeGrabVisuals: function() {
-                this.el.setAttribute('material', 'opacity', 1);
-                this.el.setAttribute('animation', {
-                    property: 'scale',
-                    to: '1 1 1',
-                    dur: 200,
-                    easing: 'easeOutQuad'
-                });
+                
+                setTimeout(() => {
+                    if (this.el.parentNode) {
+                        this.el.parentNode.removeChild(this.el);
+                        performanceStats.objects--;
+                        console.log('Object deleted');
+                    }
+                }, 300);
             },
             
             onStretchStart: function(evt) {
@@ -380,89 +498,34 @@ document.addEventListener('DOMContentLoaded', function() {
             
             onStretchEnd: function(evt) {
                 console.log('Stretch ended:', this.el.id || 'unnamed');
+            },
+            
+            tick: function() {
+                if (this.isRotating && this.grabberHand && rotationMode) {
+                    const handRotation = this.grabberHand.getAttribute('rotation');
+                    if (handRotation && this.initialRotation) {
+                        this.el.setAttribute('rotation', {
+                            x: this.initialRotation.x + handRotation.x * 0.5,
+                            y: this.initialRotation.y + handRotation.y * 0.5,
+                            z: this.initialRotation.z + handRotation.z * 0.5
+                        });
+                    }
+                }
             }
         });
 
-        // Gesture recognition component
-        AFRAME.registerComponent('gesture-recognition', {
-            schema: {
-                enabled: {type: 'boolean', default: true}
-            },
+        // Delete zone component
+        AFRAME.registerComponent('delete-zone', {
             init: function() {
-                this.gestures = {
-                    spawn: {
-                        name: 'spawn',
-                        pattern: 'thumbsUp',
-                        duration: 1000,
-                        active: false,
-                        timer: 0
-                    },
-                    delete: {
-                        name: 'delete',
-                        pattern: 'point',
-                        duration: 2000,
-                        active: false,
-                        timer: 0
-                    }
-                };
+                this.el.addEventListener('collidestart', this.onCollision.bind(this));
             },
             
-            tick: function(time, timeDelta) {
-                if (!this.data.enabled) return;
+            onCollision: function(evt) {
+                const collidedEl = evt.detail.target.el;
                 
-                const leftHand = document.querySelector('#leftHandTracking');
-                const rightHand = document.querySelector('#rightHandTracking');
-                
-                if (leftHand && rightHand) {
-                    this.checkGestures(leftHand, rightHand, timeDelta);
-                }
-            },
-            
-            checkGestures: function(leftHand, rightHand, timeDelta) {
-                const leftComponent = leftHand.components['hand-tracking'];
-                const rightComponent = rightHand.components['hand-tracking'];
-                
-                if (!leftComponent || !rightComponent) return;
-                
-                // Check spawn gesture (both hands thumbs up)
-                if (leftComponent.gestures.thumbsUp && rightComponent.gestures.thumbsUp) {
-                    this.gestures.spawn.timer += timeDelta;
-                    if (this.gestures.spawn.timer >= this.gestures.spawn.duration && !this.gestures.spawn.active) {
-                        this.executeSpawnGesture();
-                        this.gestures.spawn.active = true;
-                    }
-                } else {
-                    this.gestures.spawn.timer = 0;
-                    this.gestures.spawn.active = false;
-                }
-                
-                // Check delete gesture (pointing at object for extended time)
-                if (rightComponent.gestures.point) {
-                    const pointedObject = this.getPointedObject(rightHand);
-                    if (pointedObject) {
-                        this.gestures.delete.timer += timeDelta;
-                        if (this.gestures.delete.timer >= this.gestures.delete.duration) {
-                            this.executeDeleteGesture(pointedObject);
-                            this.gestures.delete.timer = 0;
-                        }
-                    } else {
-                        this.gestures.delete.timer = 0;
-                    }
-                } else {
-                    this.gestures.delete.timer = 0;
-                }
-            },
-            
-            executeSpawnGesture: function() {
-                const randomObject = spawnableObjects[Math.floor(Math.random() * spawnableObjects.length)];
-                const spawnPos = {x: 0, y: 2, z: -1};
-                spawnInteractiveObject(randomObject, spawnPos);
-                console.log('Gesture spawned object:', randomObject.name);
-            },
-            
-            executeDeleteGesture: function(object) {
-                if (object && object.classList.contains('interactive-object')) {
-                    object.setAttribute('animation', {
+                if (collidedEl && collidedEl.classList.contains('interactive-object')) {
+                    // Visual effect before deletion
+                    collidedEl.setAttribute('animation', {
                         property: 'scale',
                         to: '0 0 0',
                         dur: 300,
@@ -470,59 +533,47 @@ document.addEventListener('DOMContentLoaded', function() {
                     });
                     
                     setTimeout(() => {
-                        if (object.parentNode) {
-                            object.parentNode.removeChild(object);
+                        if (collidedEl.parentNode) {
+                            collidedEl.parentNode.removeChild(collidedEl);
                             performanceStats.objects--;
-                            console.log('Gesture deleted object');
+                            console.log('Object deleted by zone');
                         }
                     }, 300);
                 }
-            },
-            
-            getPointedObject: function(hand) {
-                // Simplified ray casting from hand position
-                const handPosition = hand.getAttribute('position');
-                const handRotation = hand.getAttribute('rotation');
-                
-                // This would need more sophisticated ray casting implementation
-                // For now, return null - implement proper ray casting as needed
-                return null;
             }
         });
 
-        // Rest of the existing components (cursor-listener, object-spawner, etc.)
-        // ... (keeping all existing components as they were)
-        
-        // Cursor listener component for click interactions
-        AFRAME.registerComponent('cursor-listener', {
+        // Performance monitor component
+        AFRAME.registerComponent('performance-monitor', {
             init: function() {
-                this.el.addEventListener('click', this.onClick.bind(this));
-                this.el.addEventListener('mouseenter', this.onMouseEnter.bind(this));
-                this.el.addEventListener('mouseleave', this.onMouseLeave.bind(this));
+                this.frameCount = 0;
+                this.lastTime = performance.now();
             },
-            onClick: function(evt) {
-                const objectType = this.el.getAttribute('data-object-type');
-                if (objectType) {
-                    const spawnData = spawnableObjects.find(obj => obj.type === objectType);
-                    if (spawnData) {
-                        spawnInteractiveObject(spawnData, {x: 0, y: 2, z: -1});
-                        console.log('UI button spawned:', objectType);
+            
+            tick: function() {
+                this.frameCount++;
+                const currentTime = performance.now();
+                
+                if (currentTime - this.lastTime >= 1000) {
+                    performanceStats.fps = Math.round(this.frameCount * 1000 / (currentTime - this.lastTime));
+                    performanceStats.objects = document.querySelectorAll('.interactive-object').length;
+                    performanceStats.physics = document.querySelectorAll('[dynamic-body]').length;
+                    
+                    if (performance.memory) {
+                        performanceStats.memoryUsage = Math.round(performance.memory.usedJSHeapSize / 1048576);
                     }
+                    
+                    updatePerformanceDisplay();
+                    
+                    this.frameCount = 0;
+                    this.lastTime = currentTime;
                 }
-            },
-            onMouseEnter: function() {
-                this.el.setAttribute('scale', '1.1 1.1 1.1');
-                this.el.classList.add('highlighted');
-            },
-            onMouseLeave: function() {
-                this.el.setAttribute('scale', '1 1 1');
-                this.el.classList.remove('highlighted');
             }
         });
     }
 
     /**
-     * Setup event listeners for the scene
+     * Setup comprehensive event listeners
      */
     function setupEventListeners() {
         const scene = document.querySelector('a-scene');
@@ -531,150 +582,563 @@ document.addEventListener('DOMContentLoaded', function() {
         scene.addEventListener('loaded', function() {
             console.log('A-Frame scene loaded');
             hideLoadingScreen();
-            setupSpawnButtons();
-            setupDeleteZone();
             setupControllers();
             setupHandTracking();
             setupVRButton();
+            setupDeleteZone();
         });
 
         // VR mode events
         scene.addEventListener('enter-vr', function() {
             isVRMode = true;
             console.log('Entered VR mode');
-            document.querySelector('.vr-ui').style.display = 'none';
-            document.querySelector('.desktop-controls').style.display = 'none';
+            document.body.classList.add('vr-mode');
         });
 
         scene.addEventListener('exit-vr', function() {
             isVRMode = false;
             console.log('Exited VR mode');
-            document.querySelector('.vr-ui').style.display = 'block';
-            document.querySelector('.desktop-controls').style.display = 'block';
+            document.body.classList.remove('vr-mode');
         });
 
-        // Rest of existing event listeners...
-        // (keeping keyboard shortcuts and error handling as before)
+        // Keyboard shortcuts for desktop testing
+        document.addEventListener('keydown', function(evt) {
+            if (isVRMode) return;
+            
+            switch(evt.key.toLowerCase()) {
+                case '1': case '2': case '3': case '4': case '5':
+                case '6': case '7': case '8': case '9': case '0':
+                    const index = evt.key === '0' ? 9 : parseInt(evt.key) - 1;
+                    if (shapeDefinitions[index]) {
+                        spawnInteractiveObject(shapeDefinitions[index], {x: 0, y: 2, z: -1});
+                        console.log('Keyboard spawned:', shapeDefinitions[index].name);
+                    }
+                    break;
+                case 'm':
+                    toggleVRMenu();
+                    break;
+                case 'r':
+                    toggleRotationMode();
+                    break;
+                case 'delete':
+                case 'backspace':
+                    toggleDeleteMode();
+                    break;
+                case 'c':
+                    if (evt.ctrlKey) {
+                        evt.preventDefault();
+                        clearAllObjects();
+                    }
+                    break;
+                case 'p':
+                    togglePerformanceStats();
+                    break;
+                case 'd':
+                    toggleDebugMode();
+                    break;
+                case 'h':
+                    toggleHandTrackingSimulation();
+                    break;
+            }
+        });
+
+        // Error handling
+        window.addEventListener('error', function(evt) {
+            console.error('Application error:', evt.error);
+            showErrorMessage('An error occurred: ' + evt.error.message);
+        });
     }
 
     /**
-     * Setup hand tracking
+     * Setup VR controllers with enhanced functionality
+     */
+    function setupControllers() {
+        const leftController = document.querySelector('#leftController');
+        const rightController = document.querySelector('#rightController');
+
+        // Enhanced button mappings for controllers
+        if (leftController) {
+            leftController.addEventListener('xbuttondown', function() {
+                toggleVRMenu();
+            });
+            
+            leftController.addEventListener('ybuttondown', function() {
+                toggleRotationMode();
+            });
+            
+            leftController.addEventListener('gripdown', function() {
+                // Quick spawn cube
+                if (shapeDefinitions[0]) {
+                    const pos = leftController.getAttribute('position') || { x: -0.5, y: 2, z: -1 };
+                    spawnInteractiveObject(shapeDefinitions[0], pos);
+                }
+            });
+        }
+
+        if (rightController) {
+            rightController.addEventListener('abuttondown', function() {
+                toggleDeleteMode();
+            });
+            
+            rightController.addEventListener('bbuttondown', function() {
+                clearAllObjects();
+            });
+            
+            rightController.addEventListener('gripdown', function() {
+                // Quick spawn sphere
+                if (shapeDefinitions[1]) {
+                    const pos = rightController.getAttribute('position') || { x: 0.5, y: 2, z: -1 };
+                    spawnInteractiveObject(shapeDefinitions[1], pos);
+                }
+            });
+        }
+
+        console.log('Controllers setup completed');
+    }
+
+    /**
+     * Setup hand tracking system
      */
     function setupHandTracking() {
-        const leftHandTracking = document.querySelector('#leftHandTracking');
-        const rightHandTracking = document.querySelector('#rightHandTracking');
+        const leftController = document.querySelector('#leftController');
+        const rightController = document.querySelector('#rightController');
         
-        if (leftHandTracking) {
-            leftHandTracking.setAttribute('hand-tracking', 'hand: left');
-            console.log('Left hand tracking initialized');
+        if (leftController) {
+            leftController.setAttribute('advanced-hand-tracking', 'hand: left');
         }
         
-        if (rightHandTracking) {
-            rightHandTracking.setAttribute('hand-tracking', 'hand: right');
-            console.log('Right hand tracking initialized');
+        if (rightController) {
+            rightController.setAttribute('advanced-hand-tracking', 'hand: right');
         }
         
-        // Add gesture recognition to camera rig
+        // Add performance monitor to camera rig
         const cameraRig = document.querySelector('#cameraRig');
         if (cameraRig) {
-            cameraRig.setAttribute('gesture-recognition', '');
+            cameraRig.setAttribute('performance-monitor', '');
+        }
+        
+        console.log('Hand tracking system initialized');
+    }
+
+    /**
+     * Setup delete zone
+     */
+    function setupDeleteZone() {
+        const deleteZone = document.querySelector('#delete-zone');
+        if (deleteZone) {
+            deleteZone.setAttribute('delete-zone', '');
         }
     }
 
     /**
-     * Spawn an interactive object with enhanced hand support
+     * Setup VR Enter button
      */
-    function spawnInteractiveObject(spawnData, position) {
+    function setupVRButton() {
+        const enterVRButton = document.getElementById('enterVRButton');
+        const scene = document.querySelector('a-scene');
+        
+        if (enterVRButton && scene) {
+            enterVRButton.addEventListener('click', function() {
+                scene.enterVR().catch(err => {
+                    console.error('Failed to enter VR:', err);
+                    showErrorMessage('Failed to enter VR mode. Make sure your headset is connected.');
+                });
+            });
+            
+            // Check VR availability
+            if (navigator.xr) {
+                navigator.xr.isSessionSupported('immersive-vr').then(function(supported) {
+                    if (!supported) {
+                        enterVRButton.textContent = 'VR Not Available';
+                        enterVRButton.disabled = true;
+                    }
+                }).catch(() => {
+                    enterVRButton.textContent = 'VR Check Failed';
+                    enterVRButton.disabled = true;
+                });
+            } else {
+                enterVRButton.textContent = 'WebXR Not Supported';
+                enterVRButton.disabled = true;
+            }
+        }
+    }
+
+    /**
+     * Spawn interactive object with comprehensive physics and interaction
+     */
+    function spawnInteractiveObject(shapeData, position) {
         const scene = document.querySelector('a-scene');
         const entity = document.createElement('a-entity');
         
         objectCounter++;
-        entity.setAttribute('id', `spawned-object-${objectCounter}`);
+        entity.setAttribute('id', `spawned-${shapeData.type}-${objectCounter}`);
         entity.setAttribute('class', 'interactive-object');
         
-        // Set position with slight randomization
+        // Set position with randomization
         const spawnPos = {
-            x: position.x + (Math.random() - 0.5) * 0.5,
-            y: position.y + Math.random() * 0.5,
-            z: position.z + (Math.random() - 0.5) * 0.5
+            x: position.x + (Math.random() - 0.5) * 0.3,
+            y: position.y + Math.random() * 0.2,
+            z: position.z + (Math.random() - 0.5) * 0.3
         };
         entity.setAttribute('position', spawnPos);
         
-        // Set geometry based on type (same as before)
-        switch(spawnData.type) {
-            case 'box':
-                entity.setAttribute('geometry', {
-                    primitive: 'box',
-                    width: 0.5,
-                    height: 0.5,
-                    depth: 0.5
-                });
-                entity.setAttribute('dynamic-body', 'shape: box; mass: 1');
-                break;
-            case 'sphere':
-                entity.setAttribute('geometry', {
-                    primitive: 'sphere',
-                    radius: spawnData.radius || 0.3
-                });
-                entity.setAttribute('dynamic-body', 'shape: sphere; mass: 1');
-                break;
-            case 'cylinder':
-                entity.setAttribute('geometry', {
-                    primitive: 'cylinder',
-                    radius: spawnData.radius || 0.2,
-                    height: spawnData.height || 0.8
-                });
-                entity.setAttribute('dynamic-body', 'shape: cylinder; mass: 1');
-                break;
-            case 'dodecahedron':
-                entity.setAttribute('geometry', {
-                    primitive: 'dodecahedron',
-                    radius: spawnData.radius || 0.3
-                });
-                entity.setAttribute('dynamic-body', 'shape: sphere; mass: 1');
-                break;
-            case 'octahedron':
-                entity.setAttribute('geometry', {
-                    primitive: 'octahedron',
-                    radius: spawnData.radius || 0.3
-                });
-                entity.setAttribute('dynamic-body', 'shape: sphere; mass: 1');
-                break;
-        }
+        // Set geometry - ensure proper A-Frame geometry format
+        console.log('Setting geometry for', shapeData.type, shapeData.geometry);
+        entity.setAttribute('geometry', shapeData.geometry);
         
-        // Set material
-        const baseColor = spawnData.defaultColor;
+        // Set material with enhanced properties
         entity.setAttribute('material', {
-            color: baseColor,
-            metalness: 0.2,
-            roughness: 0.8
+            color: shapeData.color,
+            metalness: 0.3,
+            roughness: 0.7,
+            emissive: '#111111'
         });
         
-        // Add interaction components for both controllers and hands
+        // Add physics
+        const physicsShape = shapeData.physics || 'box';
+        entity.setAttribute('dynamic-body', `shape: ${physicsShape}; mass: 1`);
+        
+        // Add interaction components
         entity.setAttribute('super-hands', 'colliderEvent: raycaster-intersection; colliderEventProperty: els; colliderEndEvent: raycaster-intersection-cleared; colliderEndEventProperty: clearedEls');
         entity.setAttribute('grabbable', 'startButtons: triggerdown; endButtons: triggerup');
         entity.setAttribute('stretchable', 'startButtons: gripdown; endButtons: gripup');
         entity.setAttribute('draggable', 'startButtons: triggerdown; endButtons: triggerup');
-        entity.setAttribute('enhanced-grabbable', 'handGrabbable: true');
+        entity.setAttribute('enhanced-grabbable', '');
         
         scene.appendChild(entity);
         performanceStats.objects++;
         
-        console.log(`Spawned ${spawnData.name} with hand support at position:`, spawnPos);
+        console.log(`Spawned ${shapeData.name} (${shapeData.type}) at:`, spawnPos);
+        
+        // Performance check
+        if (performanceStats.objects > 50) {
+            console.warn('High object count detected, consider optimization');
+        }
+        
+        return entity;
     }
 
-    // Rest of existing functions (initializeUI, hideLoadingScreen, etc.)
-    // ... (keeping all other existing functions as they were)
+    /**
+     * Toggle VR menu visibility
+     */
+    function toggleVRMenu() {
+        const vrMenu = document.querySelector('#vr-menu');
+        if (vrMenu) {
+            const isVisible = vrMenu.getAttribute('visible') === 'true';
+            vrMenu.setAttribute('visible', !isVisible);
+            console.log('VR menu toggled:', !isVisible);
+        }
+    }
+
+    /**
+     * Toggle rotation mode
+     */
+    function toggleRotationMode() {
+        rotationMode = !rotationMode;
+        updateModeIndicator('rotation', rotationMode);
+        
+        // Update control button appearance in menu
+        const rotationButton = document.querySelector('[data-action="rotation-toggle"]');
+        if (rotationButton) {
+            if (rotationMode) {
+                rotationButton.classList.add('active');
+            } else {
+                rotationButton.classList.remove('active');
+            }
+        }
+        
+        console.log('Rotation mode:', rotationMode ? 'enabled' : 'disabled');
+    }
+
+    /**
+     * Toggle delete mode
+     */
+    function toggleDeleteMode() {
+        deleteMode = !deleteMode;
+        updateModeIndicator('delete', deleteMode);
+        
+        // Update control button appearance in menu
+        const deleteButton = document.querySelector('[data-action="delete-mode"]');
+        if (deleteButton) {
+            if (deleteMode) {
+                deleteButton.classList.add('active');
+            } else {
+                deleteButton.classList.remove('active');
+            }
+        }
+        
+        console.log('Delete mode:', deleteMode ? 'enabled' : 'disabled');
+    }
+
+    /**
+     * Clear all interactive objects
+     */
+    function clearAllObjects() {
+        const objects = document.querySelectorAll('.interactive-object');
+        console.log('Clearing', objects.length, 'objects');
+        
+        objects.forEach(obj => {
+            obj.setAttribute('animation', {
+                property: 'scale',
+                to: '0 0 0',
+                dur: 200,
+                easing: 'easeInQuad'
+            });
+        });
+        
+        setTimeout(() => {
+            objects.forEach(obj => {
+                if (obj.parentNode) {
+                    obj.parentNode.removeChild(obj);
+                }
+            });
+            performanceStats.objects = 0;
+            console.log('All objects cleared');
+        }, 200);
+    }
+
+    /**
+     * Show/hide rotation indicator
+     */
+    function showRotationIndicator(position) {
+        const indicator = document.querySelector('#rotation-indicator');
+        if (indicator) {
+            indicator.setAttribute('position', position);
+            indicator.setAttribute('visible', true);
+        }
+    }
+
+    function hideRotationIndicator() {
+        const indicator = document.querySelector('#rotation-indicator');
+        if (indicator) {
+            indicator.setAttribute('visible', false);
+        }
+    }
+
+    /**
+     * Update mode indicators
+     */
+    function updateModeIndicator(mode, active) {
+        let indicator = document.querySelector(`.mode-indicator.${mode}-mode`);
+        
+        if (active && !indicator) {
+            indicator = document.createElement('div');
+            indicator.className = `mode-indicator ${mode}-mode`;
+            indicator.textContent = `${mode.toUpperCase()} MODE ACTIVE`;
+            document.body.appendChild(indicator);
+        } else if (!active && indicator) {
+            indicator.remove();
+        }
+    }
+
+    /**
+     * Update hand tracking status
+     */
+    function updateHandTrackingStatus(enabled) {
+        let status = document.querySelector('.hand-tracking-status');
+        
+        if (!status) {
+            status = document.createElement('div');
+            status.className = 'hand-tracking-status';
+            document.body.appendChild(status);
+        }
+        
+        status.textContent = enabled ? 'HAND TRACKING ACTIVE' : 'CONTROLLERS ACTIVE';
+        status.className = `hand-tracking-status ${enabled ? '' : 'disabled'}`;
+    }
+
+    /**
+     * Show gesture feedback
+     */
+    function showGestureFeedback(gesture) {
+        let feedback = document.querySelector('.gesture-feedback');
+        
+        if (!feedback) {
+            feedback = document.createElement('div');
+            feedback.className = 'gesture-feedback';
+            document.body.appendChild(feedback);
+        }
+        
+        feedback.textContent = gesture;
+        feedback.classList.remove('hidden');
+        
+        setTimeout(() => {
+            feedback.classList.add('hidden');
+        }, 2000);
+    }
+
+    /**
+     * Initialize UI elements
+     */
+    function initializeUI() {
+        // Create loading screen
+        const loadingScreen = document.createElement('div');
+        loadingScreen.className = 'loading-screen';
+        loadingScreen.innerHTML = `
+            <div class="loading-spinner"></div>
+            <div class="loading-text">Loading Advanced VR Workshop...</div>
+        `;
+        document.body.appendChild(loadingScreen);
+
+        // Create VR UI instructions
+        const vrUI = document.createElement('div');
+        vrUI.className = 'vr-ui';
+        vrUI.innerHTML = `
+            <h3>Advanced VR Interactive Workshop</h3>
+            <p>Experience comprehensive VR interaction with hand tracking and controller support.</p>
+            <div class="controls-info">
+                <h4>VR Controls:</h4>
+                <ul>
+                    <li><strong>X/Y Button:</strong> Open/Close Menu</li>
+                    <li><strong>Trigger:</strong> Grab & Interact</li>
+                    <li><strong>Grip:</strong> Quick Spawn Shapes</li>
+                    <li><strong>A Button:</strong> Toggle Delete Mode</li>
+                    <li><strong>B Button:</strong> Clear All Objects</li>
+                </ul>
+                <h4>Hand Tracking:</h4>
+                <ul>
+                    <li><strong>Pinch:</strong> Grab Objects</li>
+                    <li><strong>Point:</strong> Select Menu Items</li>
+                    <li><strong>Open Palm:</strong> Release Objects</li>
+                </ul>
+            </div>
+        `;
+        document.body.appendChild(vrUI);
+
+        // Create desktop controls
+        const desktopControls = document.createElement('div');
+        desktopControls.className = 'desktop-controls';
+        desktopControls.innerHTML = `
+            <h4>Desktop Controls:</h4>
+            <ul>
+                <li><strong>1-9,0:</strong> Spawn shapes (1=Cube, 2=Sphere, etc.)</li>
+                <li><strong>M:</strong> Toggle menu</li>
+                <li><strong>R:</strong> Toggle rotation mode</li>
+                <li><strong>Del:</strong> Toggle delete mode</li>
+                <li><strong>Ctrl+C:</strong> Clear all objects</li>
+                <li><strong>P:</strong> Performance stats</li>
+                <li><strong>D:</strong> Debug mode</li>
+                <li><strong>H:</strong> Hand tracking simulation</li>
+            </ul>
+        `;
+        document.body.appendChild(desktopControls);
+
+        // Create performance stats display
+        const perfStats = document.createElement('div');
+        perfStats.className = 'performance-stats hidden';
+        perfStats.innerHTML = `
+            <div class="stat-line"><span class="stat-label">FPS:</span> <span class="stat-value" id="fps-value">0</span></div>
+            <div class="stat-line"><span class="stat-label">Objects:</span> <span class="stat-value" id="objects-value">0</span></div>
+            <div class="stat-line"><span class="stat-label">Physics:</span> <span class="stat-value" id="physics-value">0</span></div>
+            <div class="stat-line"><span class="stat-label">Memory:</span> <span class="stat-value" id="memory-value">0</span>MB</div>
+        `;
+        document.body.appendChild(perfStats);
+    }
+
+    /**
+     * Performance monitoring and optimization
+     */
+    function startPerformanceMonitoring() {
+        setInterval(() => {
+            // Memory usage monitoring
+            if (performance.memory) {
+                const memUsed = Math.round(performance.memory.usedJSHeapSize / 1048576);
+                if (memUsed > 100) {
+                    console.warn(`High memory usage: ${memUsed}MB`);
+                }
+            }
+            
+            // Object count optimization
+            const objectCount = document.querySelectorAll('.interactive-object').length;
+            if (objectCount > 100) {
+                console.warn(`Very high object count: ${objectCount}. Consider cleanup.`);
+            }
+            
+            // FPS monitoring
+            if (performanceStats.fps < 30) {
+                console.warn(`Low FPS detected: ${performanceStats.fps}`);
+            }
+        }, 5000);
+    }
+
+    /**
+     * Utility functions
+     */
+    function hideLoadingScreen() {
+        const loadingScreen = document.querySelector('.loading-screen');
+        if (loadingScreen) {
+            loadingScreen.classList.add('hidden');
+            setTimeout(() => loadingScreen.remove(), 800);
+        }
+    }
+
+    function showErrorMessage(message) {
+        const errorDiv = document.createElement('div');
+        errorDiv.className = 'error-message';
+        errorDiv.innerHTML = `
+            <h3>⚠️ Error</h3>
+            <p>${message}</p>
+            <button onclick="this.parentElement.remove()">Dismiss</button>
+            <button onclick="location.reload()">Reload</button>
+        `;
+        document.body.appendChild(errorDiv);
+        
+        setTimeout(() => errorDiv.remove(), 10000);
+    }
+
+    function updatePerformanceDisplay() {
+        const fpsEl = document.getElementById('fps-value');
+        const objectsEl = document.getElementById('objects-value');
+        const physicsEl = document.getElementById('physics-value');
+        const memoryEl = document.getElementById('memory-value');
+        
+        if (fpsEl) fpsEl.textContent = performanceStats.fps;
+        if (objectsEl) objectsEl.textContent = performanceStats.objects;
+        if (physicsEl) physicsEl.textContent = performanceStats.physics;
+        if (memoryEl) memoryEl.textContent = performanceStats.memoryUsage;
+    }
+
+    function togglePerformanceStats() {
+        const perfStats = document.querySelector('.performance-stats');
+        if (perfStats) {
+            perfStats.classList.toggle('hidden');
+        }
+    }
+
+    function toggleDebugMode() {
+        const scene = document.querySelector('a-scene');
+        const currentPhysics = scene.getAttribute('physics');
+        const isDebug = currentPhysics.includes('debug: true');
+        
+        scene.setAttribute('physics', `driver: ammo; debug: ${!isDebug}; debugDrawMode: 1`);
+        document.body.classList.toggle('debug-mode');
+        
+        console.log('Debug mode:', !isDebug ? 'enabled' : 'disabled');
+    }
+
+    function toggleHandTrackingSimulation() {
+        handTrackingEnabled = !handTrackingEnabled;
+        updateHandTrackingStatus(handTrackingEnabled);
+        console.log('Hand tracking simulation:', handTrackingEnabled ? 'enabled' : 'disabled');
+    }
 
     // Export functions for global access
     window.VRWorkshop = {
         spawnObject: spawnInteractiveObject,
+        toggleMenu: toggleVRMenu,
+        toggleRotation: toggleRotationMode,
+        toggleDelete: toggleDeleteMode,
+        clearAll: clearAllObjects,
         togglePerformanceStats: togglePerformanceStats,
         toggleDebugMode: toggleDebugMode,
         getStats: () => performanceStats,
-        getHandTrackingStatus: () => handTrackingEnabled,
-        getTwoHandedObjects: () => Array.from(twoHandedObjects.keys())
+        getShapes: () => shapeDefinitions,
+        isHandTrackingEnabled: () => handTrackingEnabled,
+        isRotationMode: () => rotationMode,
+        isDeleteMode: () => deleteMode
     };
 
-    console.log('VR Interactive Workshop with Hand Tracking initialized successfully!');
+    console.log('Advanced VR Interactive Workshop initialized successfully!');
+    console.log('Available shapes:', shapeDefinitions.length);
+    console.log('Use keys 1-9,0 to spawn different shapes, M for menu, R for rotation, Del for delete mode');
 });

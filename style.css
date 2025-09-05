@@ -738,12 +738,14 @@ select.form-control {
 }
 
 /* END PERPLEXITY DESIGN SYSTEM */
-/* Custom styles for VR Interactive Workshop */
+/* VR Interactive Workshop - Enhanced Styles */
+
 body {
     margin: 0;
     font-family: var(--font-family-base);
     background-color: var(--color-background);
     overflow: hidden;
+    user-select: none;
 }
 
 a-scene {
@@ -751,36 +753,37 @@ a-scene {
     height: 100vh;
 }
 
-/* Custom Enter VR Button */
+/* Enhanced Enter VR Button */
 .enter-vr-btn {
     position: fixed;
-    bottom: 20px;
-    right: 20px;
-    background: var(--color-primary);
+    bottom: 30px;
+    right: 30px;
+    background: linear-gradient(45deg, var(--color-primary), var(--color-primary-hover));
     color: var(--color-btn-primary-text);
     border: none;
     border-radius: var(--radius-lg);
-    padding: 15px 25px;
+    padding: 18px 32px;
     font-size: var(--font-size-lg);
-    font-weight: var(--font-weight-semibold);
+    font-weight: var(--font-weight-bold);
     cursor: pointer;
     transition: all var(--duration-normal) var(--ease-standard);
     z-index: 1001;
-    box-shadow: var(--shadow-lg);
+    box-shadow: var(--shadow-lg), 0 0 20px rgba(var(--color-primary-rgb, 33, 128, 141), 0.3);
     font-family: var(--font-family-base);
     text-transform: uppercase;
-    letter-spacing: 0.5px;
+    letter-spacing: 1px;
+    backdrop-filter: blur(10px);
+    border: 2px solid rgba(255, 255, 255, 0.2);
 }
 
 .enter-vr-btn:hover {
-    background: var(--color-primary-hover);
-    transform: translateY(-2px);
-    box-shadow: 0 8px 20px rgba(var(--color-primary-rgb, 33, 128, 141), 0.3);
+    background: linear-gradient(45deg, var(--color-primary-hover), var(--color-primary-active));
+    transform: translateY(-3px) scale(1.05);
+    box-shadow: var(--shadow-lg), 0 10px 30px rgba(var(--color-primary-rgb, 33, 128, 141), 0.4);
 }
 
 .enter-vr-btn:active {
-    background: var(--color-primary-active);
-    transform: translateY(0);
+    transform: translateY(-1px) scale(1.02);
 }
 
 .enter-vr-btn:disabled {
@@ -791,65 +794,72 @@ a-scene {
     box-shadow: var(--shadow-sm);
 }
 
-.enter-ar-btn {
-    display: none;
-}
-
-/* VR UI Styling */
+/* VR UI Information Panel */
 .vr-ui {
     position: absolute;
-    top: 20px;
-    left: 20px;
-    background: rgba(0, 0, 0, 0.8);
-    color: white;
-    padding: 15px;
-    border-radius: 8px;
-    font-size: 14px;
-    max-width: 300px;
+    top: 30px;
+    left: 30px;
+    background: rgba(var(--color-surface-rgb, 255, 255, 253), 0.95);
+    color: var(--color-text);
+    padding: 20px;
+    border-radius: var(--radius-lg);
+    font-size: var(--font-size-base);
+    max-width: 350px;
     z-index: 1000;
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(15px);
+    border: 1px solid var(--color-border);
+    box-shadow: var(--shadow-lg);
 }
 
 .vr-ui h3 {
-    margin: 0 0 10px 0;
+    margin: 0 0 12px 0;
     color: var(--color-primary);
+    font-size: var(--font-size-xl);
+    font-weight: var(--font-weight-bold);
 }
 
 .vr-ui p {
-    margin: 5px 0;
-    line-height: 1.4;
+    margin: 8px 0;
+    line-height: var(--line-height-normal);
+    color: var(--color-text-secondary);
 }
 
 .controls-info {
-    margin-top: 15px;
-    padding-top: 15px;
-    border-top: 1px solid rgba(255, 255, 255, 0.2);
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid var(--color-border);
+}
+
+.controls-info h4 {
+    margin: 0 0 8px 0;
+    color: var(--color-text);
+    font-size: var(--font-size-lg);
 }
 
 .controls-info ul {
-    margin: 5px 0;
+    margin: 8px 0;
     padding-left: 20px;
 }
 
 .controls-info li {
-    margin: 3px 0;
+    margin: 4px 0;
+    line-height: 1.4;
 }
 
-/* Loading screen */
+/* Loading Screen */
 .loading-screen {
     position: fixed;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
-    background: var(--color-background);
+    background: linear-gradient(135deg, var(--color-background), var(--color-surface));
     display: flex;
     flex-direction: column;
     justify-content: center;
     align-items: center;
     z-index: 2000;
-    transition: opacity 0.5s ease-out;
+    transition: opacity 0.8s ease-out;
 }
 
 .loading-screen.hidden {
@@ -858,13 +868,13 @@ a-scene {
 }
 
 .loading-spinner {
-    width: 50px;
-    height: 50px;
-    border: 4px solid rgba(var(--color-primary-rgb, 33, 128, 141), 0.3);
-    border-top: 4px solid var(--color-primary);
+    width: 60px;
+    height: 60px;
+    border: 5px solid rgba(var(--color-primary-rgb, 33, 128, 141), 0.3);
+    border-top: 5px solid var(--color-primary);
     border-radius: 50%;
-    animation: spin 1s linear infinite;
-    margin-bottom: 20px;
+    animation: spin 1.2s linear infinite;
+    margin-bottom: 24px;
 }
 
 @keyframes spin {
@@ -874,63 +884,67 @@ a-scene {
 
 .loading-text {
     color: var(--color-text);
-    font-size: var(--font-size-lg);
+    font-size: var(--font-size-xl);
     font-weight: var(--font-weight-medium);
     text-align: center;
+    animation: pulse 2s ease-in-out infinite;
 }
 
-/* Hide default A-Frame VR button */
-.a-enter-vr-button {
-    display: none !important;
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
 }
 
-/* Desktop fallback controls */
+/* Desktop Controls Panel */
 .desktop-controls {
     position: absolute;
-    bottom: 20px;
-    left: 20px;
-    background: rgba(0, 0, 0, 0.8);
-    color: white;
-    padding: 15px;
-    border-radius: 8px;
-    font-size: 12px;
-    max-width: 250px;
+    bottom: 30px;
+    left: 30px;
+    background: rgba(var(--color-surface-rgb, 255, 255, 253), 0.95);
+    color: var(--color-text);
+    padding: 18px;
+    border-radius: var(--radius-lg);
+    font-size: var(--font-size-sm);
+    max-width: 280px;
     z-index: 1000;
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(15px);
+    border: 1px solid var(--color-border);
+    box-shadow: var(--shadow-md);
 }
 
 .desktop-controls h4 {
-    margin: 0 0 10px 0;
+    margin: 0 0 12px 0;
     color: var(--color-primary);
-    font-size: 14px;
+    font-size: var(--font-size-lg);
+    font-weight: var(--font-weight-bold);
 }
 
 .desktop-controls ul {
-    margin: 5px 0;
-    padding-left: 20px;
+    margin: 8px 0;
+    padding-left: 18px;
 }
 
 .desktop-controls li {
-    margin: 3px 0;
-    line-height: 1.3;
+    margin: 4px 0;
+    line-height: 1.4;
 }
 
-/* Performance monitor */
+/* Performance Monitor */
 .performance-stats {
     position: absolute;
-    top: 20px;
-    right: 20px;
-    background: rgba(0, 0, 0, 0.8);
-    color: white;
-    padding: 10px;
-    border-radius: 6px;
-    font-size: 11px;
+    top: 30px;
+    right: 30px;
+    background: rgba(var(--color-charcoal-800-rgb, 38, 40, 40), 0.95);
+    color: var(--color-gray-200);
+    padding: 16px;
+    border-radius: var(--radius-base);
+    font-size: var(--font-size-xs);
     font-family: var(--font-family-mono);
     z-index: 1000;
-    min-width: 120px;
+    min-width: 140px;
     backdrop-filter: blur(10px);
     border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: var(--shadow-lg);
 }
 
 .performance-stats.hidden {
@@ -938,54 +952,163 @@ a-scene {
 }
 
 .stat-line {
-    margin: 2px 0;
+    margin: 4px 0;
     display: flex;
     justify-content: space-between;
+    align-items: center;
 }
 
 .stat-value {
-    color: var(--color-primary);
-    font-weight: bold;
+    color: var(--color-teal-300);
+    font-weight: var(--font-weight-bold);
+    font-size: var(--font-size-sm);
 }
 
-/* Object highlighting effects */
+.stat-label {
+    color: var(--color-gray-300);
+}
+
+/* Mode Indicators */
+.mode-indicator {
+    position: absolute;
+    top: 100px;
+    right: 30px;
+    background: var(--color-bg-5);
+    color: var(--color-text);
+    padding: 12px 16px;
+    border-radius: var(--radius-full);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    z-index: 1000;
+    backdrop-filter: blur(10px);
+    border: 1px solid var(--color-border);
+    box-shadow: var(--shadow-sm);
+    animation: slideInRight 0.3s ease-out;
+}
+
+@keyframes slideInRight {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+.mode-indicator.rotation-mode {
+    background: var(--color-bg-2);
+    color: var(--color-warning);
+    border-color: var(--color-warning);
+}
+
+.mode-indicator.delete-mode {
+    background: var(--color-bg-4);
+    color: var(--color-error);
+    border-color: var(--color-error);
+}
+
+.mode-indicator.hand-tracking {
+    background: var(--color-bg-3);
+    color: var(--color-success);
+    border-color: var(--color-success);
+}
+
+/* Object Interaction Effects */
 .interactive-object.hoverable {
-    animation: pulse 2s infinite;
+    animation: objectHover 2s ease-in-out infinite;
 }
 
-@keyframes pulse {
-    0% { opacity: 1; }
-    50% { opacity: 0.7; }
-    100% { opacity: 1; }
-}
-
-/* Spawn button effects */
-.spawn-button.highlighted {
-    animation: glow 1s ease-in-out infinite alternate;
-}
-
-@keyframes glow {
-    from { 
-        box-shadow: 0 0 5px rgba(255, 255, 255, 0.5);
+@keyframes objectHover {
+    0%, 100% { 
         transform: scale(1);
+        filter: brightness(1);
     }
-    to { 
-        box-shadow: 0 0 15px rgba(255, 255, 255, 0.8);
+    50% { 
         transform: scale(1.05);
+        filter: brightness(1.2);
     }
 }
 
-/* Clickable cursor effects for spawn buttons */
-.clickable {
+.interactive-object.grabbed {
+    animation: objectGrabbed 0.5s ease-out;
+    filter: brightness(1.3) saturate(1.2);
+}
+
+@keyframes objectGrabbed {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+    100% { transform: scale(1.05); }
+}
+
+.interactive-object.hand-hoverable {
+    animation: handHover 1s ease-in-out infinite;
+}
+
+@keyframes handHover {
+    0%, 100% { 
+        filter: brightness(1) drop-shadow(0 0 10px rgba(255, 255, 255, 0.3));
+    }
+    50% { 
+        filter: brightness(1.2) drop-shadow(0 0 20px rgba(255, 255, 255, 0.6));
+    }
+}
+
+/* Menu Button Effects */
+.menu-button {
     cursor: pointer;
+    transition: all var(--duration-fast) var(--ease-standard);
 }
 
-.clickable:hover {
-    opacity: 0.8;
-    transform: scale(1.05);
+.menu-button:hover {
+    transform: scale(1.1);
+    filter: brightness(1.2);
 }
 
-/* Error messages */
+.menu-button.selected {
+    animation: menuSelection 0.3s ease-out;
+}
+
+@keyframes menuSelection {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.3); }
+    100% { transform: scale(1.1); }
+}
+
+.control-button {
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-radius: 8px;
+    padding: 4px;
+}
+
+.control-button.active {
+    border-color: var(--color-primary);
+    background: rgba(var(--color-primary-rgb, 33, 128, 141), 0.2);
+    animation: controlActive 2s ease-in-out infinite;
+}
+
+@keyframes controlActive {
+    0%, 100% { box-shadow: 0 0 10px rgba(var(--color-primary-rgb, 33, 128, 141), 0.5); }
+    50% { box-shadow: 0 0 20px rgba(var(--color-primary-rgb, 33, 128, 141), 0.8); }
+}
+
+/* Two-handed manipulation effects */
+.two-handed-manipulation {
+    filter: brightness(1.4) saturate(1.3);
+    animation: twoHandManipulation 1s ease-in-out infinite;
+}
+
+@keyframes twoHandManipulation {
+    0%, 100% { 
+        box-shadow: 0 0 15px rgba(var(--color-teal-300-rgb, 50, 184, 198), 0.6);
+    }
+    50% { 
+        box-shadow: 0 0 25px rgba(var(--color-teal-300-rgb, 50, 184, 198), 0.9);
+    }
+}
+
+/* Error Messages */
 .error-message {
     position: absolute;
     top: 50%;
@@ -993,124 +1116,197 @@ a-scene {
     transform: translate(-50%, -50%);
     background: var(--color-error);
     color: white;
-    padding: 20px;
-    border-radius: 8px;
+    padding: 24px;
+    border-radius: var(--radius-lg);
     z-index: 2000;
     max-width: 400px;
     text-align: center;
     box-shadow: var(--shadow-lg);
+    animation: errorAppear 0.3s ease-out;
+}
+
+@keyframes errorAppear {
+    from {
+        transform: translate(-50%, -50%) scale(0.8);
+        opacity: 0;
+    }
+    to {
+        transform: translate(-50%, -50%) scale(1);
+        opacity: 1;
+    }
 }
 
 .error-message button {
     background: white;
     color: var(--color-error);
     border: none;
-    padding: 10px 20px;
-    border-radius: 4px;
-    margin-top: 15px;
+    padding: 12px 24px;
+    border-radius: var(--radius-base);
+    margin-top: 16px;
     cursor: pointer;
     font-weight: var(--font-weight-medium);
+    font-family: var(--font-family-base);
+    transition: all var(--duration-fast) var(--ease-standard);
 }
 
 .error-message button:hover {
     background: var(--color-gray-200);
+    transform: translateY(-1px);
 }
 
-/* VR Mode adjustments */
+/* VR Mode Adjustments */
 .vr-mode .vr-ui,
-.vr-mode .desktop-controls {
+.vr-mode .desktop-controls,
+.vr-mode .performance-stats,
+.vr-mode .mode-indicator {
     display: none;
 }
 
-/* Mobile responsiveness */
+/* Hand Tracking Status */
+.hand-tracking-status {
+    position: absolute;
+    bottom: 100px;
+    right: 30px;
+    background: var(--color-bg-3);
+    color: var(--color-success);
+    padding: 10px 16px;
+    border-radius: var(--radius-full);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    z-index: 1000;
+    backdrop-filter: blur(10px);
+    border: 1px solid var(--color-success);
+    box-shadow: var(--shadow-sm);
+    animation: pulse 2s ease-in-out infinite;
+}
+
+.hand-tracking-status.disabled {
+    background: var(--color-bg-4);
+    color: var(--color-error);
+    border-color: var(--color-error);
+}
+
+/* Gesture Recognition Feedback */
+.gesture-feedback {
+    position: absolute;
+    bottom: 150px;
+    right: 30px;
+    background: rgba(var(--color-charcoal-800-rgb, 38, 40, 40), 0.9);
+    color: var(--color-teal-300);
+    padding: 12px 18px;
+    border-radius: var(--radius-base);
+    font-size: var(--font-size-sm);
+    font-family: var(--font-family-mono);
+    z-index: 1000;
+    backdrop-filter: blur(10px);
+    border: 1px solid var(--color-teal-300);
+    box-shadow: var(--shadow-md);
+    min-width: 150px;
+    text-align: center;
+}
+
+.gesture-feedback.hidden {
+    display: none;
+}
+
+/* Mobile Responsiveness */
 @media (max-width: 768px) {
     .vr-ui, .desktop-controls, .performance-stats {
-        font-size: 11px;
-        padding: 10px;
-        max-width: 200px;
+        font-size: var(--font-size-sm);
+        padding: 16px;
+        max-width: 250px;
     }
     
     .vr-ui {
-        top: 10px;
-        left: 10px;
+        top: 20px;
+        left: 20px;
     }
     
     .desktop-controls {
-        bottom: 80px;
-        left: 10px;
+        bottom: 90px;
+        left: 20px;
     }
     
-    .performance-stats {
-        top: 10px;
-        right: 10px;
+    .performance-stats, .mode-indicator {
+        top: 20px;
+        right: 20px;
     }
     
     .enter-vr-btn {
-        bottom: 10px;
-        right: 10px;
-        padding: 12px 20px;
+        bottom: 20px;
+        right: 20px;
+        padding: 14px 24px;
         font-size: var(--font-size-base);
     }
 }
 
 @media (max-width: 480px) {
     .vr-ui, .desktop-controls {
-        max-width: 150px;
-        font-size: 10px;
+        max-width: 200px;
+        font-size: var(--font-size-xs);
+        padding: 12px;
     }
     
     .enter-vr-btn {
-        padding: 10px 16px;
+        padding: 12px 20px;
         font-size: var(--font-size-sm);
+    }
+    
+    .performance-stats {
+        font-size: 10px;
+        padding: 12px;
+        min-width: 120px;
     }
 }
 
-/* Debug mode styles */
+/* Debug Mode */
 .debug-mode .debug-info {
     position: absolute;
-    bottom: 100px;
-    right: 20px;
-    background: rgba(0, 0, 0, 0.9);
+    bottom: 200px;
+    right: 30px;
+    background: rgba(0, 0, 0, 0.95);
     color: #00ff00;
-    padding: 15px;
-    border-radius: 8px;
+    padding: 16px;
+    border-radius: var(--radius-base);
     font-family: var(--font-family-mono);
     font-size: 11px;
     max-width: 300px;
     z-index: 1000;
-    border: 1px solid #00ff00;
+    border: 2px solid #00ff00;
     backdrop-filter: blur(10px);
+    box-shadow: var(--shadow-lg);
 }
 
 .debug-info h4 {
-    margin: 0 0 10px 0;
+    margin: 0 0 12px 0;
     color: #00ff00;
+    font-size: var(--font-size-sm);
 }
 
 .debug-info pre {
-    margin: 5px 0;
+    margin: 6px 0;
     white-space: pre-wrap;
-    line-height: 1.2;
+    line-height: 1.3;
 }
 
-/* Scene loading state */
+/* Scene Loading States */
 a-scene:not(.loaded) {
-    opacity: 0.5;
+    opacity: 0.3;
 }
 
 a-scene.loaded {
     opacity: 1;
-    transition: opacity 0.5s ease-in;
+    transition: opacity 0.8s ease-in;
 }
 
-/* Accessibility improvements */
+/* Accessibility */
 @media (prefers-reduced-motion: reduce) {
-    .loading-spinner {
-        animation: none;
-    }
-    
+    .loading-spinner,
     .interactive-object.hoverable,
-    .spawn-button.highlighted {
+    .menu-button,
+    .control-button.active,
+    .two-handed-manipulation,
+    .hand-tracking-status {
         animation: none;
     }
     
@@ -1123,11 +1319,11 @@ a-scene.loaded {
     }
 }
 
-/* High contrast mode */
+/* High Contrast Mode */
 @media (prefers-contrast: high) {
     .vr-ui, .desktop-controls, .performance-stats {
-        background: rgba(0, 0, 0, 0.95);
-        border: 2px solid white;
+        background: rgba(0, 0, 0, 0.98);
+        border: 3px solid white;
     }
     
     .loading-screen {
@@ -1135,25 +1331,58 @@ a-scene.loaded {
         color: white;
     }
     
-    .loading-spinner {
-        border-color: white;
-        border-top-color: var(--color-primary);
-    }
-    
     .enter-vr-btn {
-        border: 2px solid var(--color-btn-primary-text);
+        border: 3px solid var(--color-btn-primary-text);
     }
 }
 
-/* Focus states for better accessibility */
+/* Focus States */
 .enter-vr-btn:focus-visible {
     outline: var(--focus-outline);
-    outline-offset: 3px;
+    outline-offset: 4px;
 }
 
-/* Print styles (hide VR elements) */
+/* Print Styles */
 @media print {
-    .vr-ui, .desktop-controls, .performance-stats, .enter-vr-btn, .loading-screen, .error-message {
+    .vr-ui, .desktop-controls, .performance-stats, .enter-vr-btn, 
+    .loading-screen, .error-message, .mode-indicator, 
+    .hand-tracking-status, .gesture-feedback {
         display: none !important;
     }
+}
+
+/* Hide default A-Frame UI */
+.a-enter-vr-button,
+.a-enter-ar-button {
+    display: none !important;
+}
+
+/* Custom scrollbar for panels */
+.vr-ui::-webkit-scrollbar,
+.desktop-controls::-webkit-scrollbar {
+    width: 6px;
+}
+
+.vr-ui::-webkit-scrollbar-track,
+.desktop-controls::-webkit-scrollbar-track {
+    background: var(--color-secondary);
+    border-radius: 3px;
+}
+
+.vr-ui::-webkit-scrollbar-thumb,
+.desktop-controls::-webkit-scrollbar-thumb {
+    background: var(--color-primary);
+    border-radius: 3px;
+}
+
+.vr-ui::-webkit-scrollbar-thumb:hover,
+.desktop-controls::-webkit-scrollbar-thumb:hover {
+    background: var(--color-primary-hover);
+}
+
+/* Theme transitions */
+* {
+    transition: background-color var(--duration-normal) var(--ease-standard),
+                color var(--duration-normal) var(--ease-standard),
+                border-color var(--duration-normal) var(--ease-standard);
 }
